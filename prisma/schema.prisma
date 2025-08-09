@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ========== ENUMS ==========
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodType {
+  A_POS
+  A_NEG
+  B_POS
+  B_NEG
+  AB_POS
+  AB_NEG
+  O_POS
+  O_NEG
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum NotificationType {
+  SYSTEM
+  APPOINTMENT
+  DIAGNOSIS
+  PRESCRIPTION
+  OTHER
+}
+
+// ========== MODELS ==========
+
+// USER MODEL
+model User {
+  id                  Int            @id @default(autoincrement())
+  email               String         @unique
+  password            String
+  name                String
+  role                Role           @default(PATIENT)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  patient             Patient?
+  doctor              Doctor?
+  inbox               Notification[] @relation("Inbox")
+  outbox              Notification[] @relation("Outbox")
+  cancelledAppointments  Appointment[]  @relation("CancelledByUser")
+  createdAppointments Appointment[]  @relation("CreatedByUser")
+}
+
+// PATIENT MODEL
+model Patient {
+  id           Int       @id
+  address      String
+  phoneNumber  String
+  allergies    String?
+  gender       Gender
+  bloodType    BloodType
+  dateOfBirth  DateTime
+
+  // Relations
+  user         User        @relation(fields: [id], references: [id])
+  appointments Appointment[]
+  diagnoses    Diagnosis[]
+}
+
+// DOCTOR MODEL
+model Doctor {
+  id                Int       @id
+  phoneNumber       String
+  licenseNumber     String    @unique
+  isVerified        Boolean   @default(false)
+  yearsOfExperience Int
+  departmentId      Int
+
+  // Relations
+  user              User       @relation(fields: [id], references: [id])
+  department        Department @relation(fields: [departmentId], references: [id])
+  appointments      Appointment[]
+  diagnoses         Diagnosis[]
+}
+
+// DEPARTMENT MODEL
+model Department {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+
+  // Relations
+  doctors  Doctor[]
+}
+
+// APPOINTMENT MODEL
+model Appointment {
+  id           Int               @id @default(autoincrement())
+  date         DateTime
+  status       AppointmentStatus @default(PENDING)
+  patientId    Int
+  doctorId     Int
+  createdBy    Int
+  cancelledBy  Int? // only filled upon cancellation
+
+  // Relations
+  patient      Patient     @relation(fields: [patientId], references: [id])
+  doctor       Doctor      @relation(fields: [doctorId], references: [id])
+  cancelUser   User?       @relation("CancelledByUser", fields: [cancelledBy], references: [id])
+  createdUser  User        @relation("CreatedByUser", fields: [createdBy], references: [id])
+  diagnosis    Diagnosis?
+}
+
+// DIAGNOSIS MODEL
+model Diagnosis {
+  id            Int      @id @default(autoincrement())
+  symptoms      String
+  prescribed    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  doctorId      Int
+  patientId     Int
+  appointmentId Int?     @unique
+
+  // Relations
+  doctor        Doctor        @relation(fields: [doctorId], references: [id])
+  patient       Patient       @relation(fields: [patientId], references: [id])
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  prescriptions Prescription[]
+}
+
+// PRESCRIPTION MODEL
+model Prescription {
+  id           Int      @id @default(autoincrement())
+  medication   String
+  dosage       String
+  frequency    String
+  startDate    DateTime
+  endDate      DateTime?
+  diagnosisId  Int
+
+  // Relations
+  diagnosis    Diagnosis @relation(fields: [diagnosisId], references: [id])
+}
+
+// NOTIFICATION MODEL
+model Notification {
+  id           Int              @id @default(autoincrement())
+  type         NotificationType
+  message      String
+  isRead       Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  initiatorId  Int
+  recipientId  Int         
+
+  // Relations
+  initiator    User             @relation("Outbox", fields: [initiatorId], references: [id])
+  recipient    User             @relation("Inbox", fields: [recipientId], references: [id])
+}
