@@ -5,17 +5,21 @@ dotenv.config();
 
 const app= express();
 app.use(express.json());
-app.use(cors({
-    origin: 'http://localhost:3000'
-}));
+
+//will specify origin later
+app.use(cors());
 
 app.get('/', (req, res)=>{
     res.send('API is up and running!');
 });
 
 //routers import
+import routers from './src/routes/index.js'
 
 //routing
+routers.forEach(({path, route})=>{
+    app.use(`/api${path}`, route);
+});
 
 export default app;
 

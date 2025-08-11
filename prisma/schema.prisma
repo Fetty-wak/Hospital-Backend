@@ -62,7 +62,7 @@ model User {
   id                  Int            @id @default(autoincrement())
   email               String         @unique
   password            String
-  name                String
+  fullName            String
   role                Role           @default(PATIENT)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
@@ -99,11 +99,11 @@ model Doctor {
   licenseNumber     String    @unique
   isVerified        Boolean   @default(false)
   yearsOfExperience Int
-  departmentId      Int
+  departmentId      Int?
 
   // Relations
   user              User       @relation(fields: [id], references: [id])
-  department        Department @relation(fields: [departmentId], references: [id])
+  department        Department? @relation(fields: [departmentId], references: [id])
   appointments      Appointment[]
   diagnoses         Diagnosis[]
 }
