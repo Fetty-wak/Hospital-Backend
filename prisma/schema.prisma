@@ -175,7 +175,8 @@ model Notification {
   isRead       Boolean          @default(false)
   createdAt    DateTime         @default(now())
   initiatorId  Int
-  recipientId  Int         
+  recipientId  Int       
+  eventId      Int?   //this is the id of whatever triggered the notification  
 
   // Relations
   initiator    User             @relation("Outbox", fields: [initiatorId], references: [id])

@@ -13,12 +13,19 @@ app.get('/', (req, res)=>{
     res.send('API is up and running!');
 });
 
+//route protection middleware 
+import { protect } from './src/middleware/protector.js';
+
 //routers import
 import routers from './src/routes/index.js'
 
 //routing
 routers.forEach(({path, route})=>{
-    app.use(`/api${path}`, route);
+    if(path ==='/auth'){
+        app.use(`/api${path}`, route);
+    }else{
+        app.use(`/api/user${path}`, protect, route);
+    }
 });
 
 export default app;
