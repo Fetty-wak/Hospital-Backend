@@ -35,7 +35,7 @@ export const register=async (req, res)=>{
         });
         
         //generate token
-        const token =generateToken(user.id, user.role);
+        const token =generateToken({id: user.id, role: user.role, fullName: user.fullName});
 
         res.status(201).json({message: 'signup was successful', token, data: {name: user.fullName, email: user.email}});
 
@@ -63,7 +63,7 @@ export const login= async (req, res)=>{
         if(!isMatch) return res.status(401).json({message: 'Invalid login details'});
 
         //generate token
-        const token= generateToken(user.id, user.role);
+        const token= generateToken({id: user.id, role: user.role, fullName: user.fullName});
 
         res.status(200).json({message: 'login successful', token, data: {name: user.fullName, email}});
 

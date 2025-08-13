@@ -1,5 +1,5 @@
 import authRoutes from './auth/authRouter.js'
-//import appointmentsRoutes from './appointments/appointmentsRouter.js'
+import appointmentsRoutes from './appointments/appointmentsRouter.js'
 //import diagnosisRoutes from './diagnosis/diagnosisRouter.js'
 //import doctorsRoutes from './doctors/doctorsRouter.js'
 import notificationsRoutes from './notifications/notificationsRouter.js'
@@ -8,10 +8,10 @@ import notificationsRoutes from './notifications/notificationsRouter.js'
 
 export default [
     {path: '/auth', route: authRoutes},
-    //{path: '/appointment', route: appointmentsRoutes},
+    {path: '/appointments', route: appointmentsRoutes},
     //{path: '/diagnosis', route: diagnosisRoutes},
     //{path: '/doctors', route: doctorsRoutes},
-    {path: '/notification', route: notificationsRoutes},
+    {path: '/notifications', route: notificationsRoutes},
     //{path: '/patients', route: patientsRoutes},
-    //{path: '/prescription', route: prescriptionsRoutes}
+    //{path: '/prescriptions', route: prescriptionsRoutes}
 ]

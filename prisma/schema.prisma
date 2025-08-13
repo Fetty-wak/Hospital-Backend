@@ -124,6 +124,8 @@ model Appointment {
   status       AppointmentStatus @default(PENDING)
   patientId    Int
   doctorId     Int
+  reason       String
+  outcome      String? //only filled upon completion
   createdBy    Int
   cancelledBy  Int? // only filled upon cancellation
 
@@ -176,7 +178,9 @@ model Notification {
   createdAt    DateTime         @default(now())
   initiatorId  Int
   recipientId  Int       
-  eventId      Int?   //this is the id of whatever triggered the notification  
+  eventId      Int?   //this is the id of whatever triggered the notification
+  status       String
+  errorMessage String? //filled if notification generation fails  
 
   // Relations
   initiator    User             @relation("Outbox", fields: [initiatorId], references: [id])

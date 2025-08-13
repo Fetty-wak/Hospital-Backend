@@ -2,7 +2,7 @@ import { Router } from "express";
 const router= Router();
 
 //controllers import
-import {getAllNotifications, confirmNotification} from '../../controllers/appointments/appointmentController.js';
+import {getAllNotifications, confirmNotification} from '../../controllers/notifications/notificationsController.js';
 
 //route definitions
 router.get('/', getAllNotifications);

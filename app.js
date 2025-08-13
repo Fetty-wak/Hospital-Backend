@@ -24,7 +24,7 @@ routers.forEach(({path, route})=>{
     if(path ==='/auth'){
         app.use(`/api${path}`, route);
     }else{
-        app.use(`/api/user${path}`, protect, route);
+        app.use(`/api${path}`, protect, route);
     }
 });
 
