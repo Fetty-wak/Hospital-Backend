@@ -74,6 +74,7 @@ model User {
   outbox              Notification[] @relation("Outbox")
   cancelledAppointments  Appointment[]  @relation("CancelledByUser")
   createdAppointments Appointment[]  @relation("CreatedByUser")
+  updatedAppointments Appointment[]  @relation("UpdatedByUser")
 }
 
 // PATIENT MODEL
@@ -122,18 +123,23 @@ model Appointment {
   id           Int               @id @default(autoincrement())
   date         DateTime
   status       AppointmentStatus @default(PENDING)
+  patientConfirmed  Boolean @default(false)
+  doctorConfirmed   Boolean @default(false)
   patientId    Int
   doctorId     Int
   reason       String
+  updateReason String? //only filled when user updates appointment
   outcome      String? //only filled upon completion
   createdBy    Int
   cancelledBy  Int? // only filled upon cancellation
+  updatedBy    Int? // only filled when user updates appointment
 
   // Relations
   patient      Patient     @relation(fields: [patientId], references: [id])
   doctor       Doctor      @relation(fields: [doctorId], references: [id])
   cancelUser   User?       @relation("CancelledByUser", fields: [cancelledBy], references: [id])
   createdUser  User        @relation("CreatedByUser", fields: [createdBy], references: [id])
+  updatedUser  User?       @relation("UpdatedByUser", fields: [updatedBy], references: [id])
   diagnosis    Diagnosis?
 }
 
