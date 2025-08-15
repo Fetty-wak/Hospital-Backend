@@ -15,14 +15,14 @@ export const notify= async ({type, message, initiatorId, recipientIds, eventId})
         }));
 
     try{
-        const data= await prisma.notification.createMany({data: {notifications}});
+        const data= await prisma.notification.createMany({data: notifications});
         return {success: true,data}
 
     }catch(error){
         console.error('notification creation error: ', error);
 
         const failedNotifications= notifications.map(n=>({...n, status: 'FAILED', errorMessage: error.message}));
-        await prisma.notification.createMany({data: {failedNotifications}}).catch(err=>console.error('failed to log notifications', err));
+        await prisma.notification.createMany({data: failedNotifications}).catch(err=>console.error('failed to log notifications', err));
         return {success: false, error};
     }
 };

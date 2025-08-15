@@ -12,6 +12,9 @@ export const createAppointment = async (req, res) => {
     // Validate target(s) exist
     let recipientIds = [];
 
+    let doctorConfirmed= role==='DOCTOR'? true: false;
+    let patientConfirmed= role ==='PATIENT'? true: false;
+
     if (role === 'DOCTOR') {
       const patient = await prisma.patient.findUnique({ where: { id: patientId } });
       if (!patient) return res.status(404).json({ message: 'Patient not found' });
@@ -38,6 +41,8 @@ export const createAppointment = async (req, res) => {
         doctorId,
         patientId,
         createdBy: creatorId,
+        ...(doctorConfirmed && {doctorConfirmed}),
+        ...(patientConfirmed && {patientConfirmed})
       },
     });
 
@@ -125,11 +130,15 @@ export const getAppointmentById = async (req, res) => {
 };
 
 export const updateAppointment= async (req, res)=>{
-  const {id: appointmentId}= req.params;
   const {updateReason, reason, date}= req.body;
   const {id: userId, role, fullName}= req.user;
 
   try{
+    //get id from params
+    const appointmentId = parseInt(req.params.id, 10);
+    if (isNaN(appointmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
+    }
     
     //retrieve appointment
     const appointment= await prisma.appointment.findUnique({where: {id: appointmentId}, select: {date: true, reason: true, status: true, updatedBy: true}});
@@ -195,10 +204,16 @@ export const updateAppointment= async (req, res)=>{
 
 export const confirmAppointment = async (req, res) => {
   try {
-    const appointmentId = req.params.id;
+    
     const userId = req.user.id;
     const userRole = req.user.role;
     const fullName= req.user.fullName;
+
+    const appointmentId = parseInt(req.params.id, 10);
+    if (isNaN(appointmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
+    }
+
 
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -276,9 +291,16 @@ export const confirmAppointment = async (req, res) => {
 
 export const cancelAppointment = async (req, res) => {
   try {
-    const appointmentId = req.params.id;
+    
     const { cancellationReason } = req.body;
     const { id: userId, role, fullName } = req.user;
+
+    //grab id from params
+    const appointmentId = parseInt(req.params.id, 10);
+    if (isNaN(appointmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
+    }
+
 
     // Retrieve appointment
     const appointment = await prisma.appointment.findUnique({
@@ -345,9 +367,14 @@ export const cancelAppointment = async (req, res) => {
 
 export const completeAppointment = async (req, res) => {
   try {
-    const appointmentId = req.params.id;
+    
     const { outcome } = req.body;
     const { id: userId, role, fullName } = req.user;
+
+    const appointmentId = parseInt(req.params.id, 10);
+    if (isNaN(appointmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
+    }
 
     // Only doctors can complete
     if (role !== "DOCTOR") {
