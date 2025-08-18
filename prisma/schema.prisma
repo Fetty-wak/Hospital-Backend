@@ -17,10 +17,26 @@ generator client {
 
 // ========== ENUMS ==========
 
+enum LabResultStatus {
+  PENDING
+  COMPLETED
+}
+
+enum DiagnosisStatus {
+  PENDING
+  COMPLETED
+}
+
+enum InvitedRoles {
+  DOCTOR
+  LAB_TECH
+}
+
 enum Role {
   PATIENT
   DOCTOR
   ADMIN
+  LAB_TECH
 }
 
 enum Gender {
@@ -70,11 +86,13 @@ model User {
   // Relations
   patient             Patient?
   doctor              Doctor?
+  labTech             LabTech?
   inbox               Notification[] @relation("Inbox")
   outbox              Notification[] @relation("Outbox")
   cancelledAppointments  Appointment[]  @relation("CancelledByUser")
   createdAppointments Appointment[]  @relation("CreatedByUser")
   updatedAppointments Appointment[]  @relation("UpdatedByUser")
+  inviteCodes         InviteCode[]
 }
 
 // PATIENT MODEL
@@ -93,6 +111,18 @@ model Patient {
   diagnoses    Diagnosis[]
 }
 
+model LabTech {
+  id           Int      @id             // same as User id
+  phoneNumber  String
+  departmentId Int
+  isVerified   Boolean  @default(false)
+
+  // Relations
+  user         User      @relation(fields: [id], references: [id])
+  labResults   LabResult[]
+  department   Department @relation(fields: [departmentId], references: [id])
+}
+
 // DOCTOR MODEL
 model Doctor {
   id                Int       @id
@@ -100,14 +130,29 @@ model Doctor {
   licenseNumber     String    @unique
   isVerified        Boolean   @default(false)
   yearsOfExperience Int
-  departmentId      Int?
+  departmentId      Int
 
   // Relations
   user              User       @relation(fields: [id], references: [id])
-  department        Department? @relation(fields: [departmentId], references: [id])
+  department        Department @relation(fields: [departmentId], references: [id])
   appointments      Appointment[]
   diagnoses         Diagnosis[]
 }
+
+//INVITE CODE MODEL FOR SPECIAL ROLES SIGNUPS
+model InviteCode {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique
+  role      InvitedRoles
+  expiresAt DateTime?
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  createdBy Int       // admin id
+
+  //Relations
+  creator   User      @relation(fields: [createdBy], references: [id])
+}
+
 
 // DEPARTMENT MODEL
 model Department {
@@ -116,6 +161,7 @@ model Department {
 
   // Relations
   doctors  Doctor[]
+  labTechs LabTech[]
 }
 
 // APPOINTMENT MODEL
@@ -152,6 +198,7 @@ model Diagnosis {
   updatedAt     DateTime @updatedAt
   doctorId      Int
   patientId     Int
+  status DiagnosisStatus @default(PENDING)
   appointmentId Int?     @unique
 
   // Relations
@@ -159,6 +206,34 @@ model Diagnosis {
   patient       Patient       @relation(fields: [patientId], references: [id])
   appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
   prescriptions Prescription[]
+  labresults    LabResult[]
+}
+
+model LabTest {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique       // e.g., "Complete Blood Count", "Chest X-Ray"
+  code      String?   @unique       // optional standardized code (like LOINC)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  labResults LabResult[]
+}
+
+model LabResult {
+  id          Int       @id @default(autoincrement())
+  labTechId   Int       //lab technician filling the data
+  diagnosisId Int
+  labTestId   Int       // type of test being performed
+  status      LabResultStatus @default(PENDING)
+  result      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  diagnosis   Diagnosis @relation(fields: [diagnosisId], references: [id])
+  labTest     LabTest   @relation(fields: [labTestId], references: [id])
+  labTech     LabTech   @relation(fields: [labTechId], references: [id])
 }
 
 // PRESCRIPTION MODEL

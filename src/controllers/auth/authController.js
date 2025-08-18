@@ -1,78 +1,91 @@
 import { PrismaClient } from "@prisma/client";
-const prisma= new PrismaClient();
+const prisma = new PrismaClient();
 import { generateToken } from "../../utils/tokenGenerator.js";
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 
-export const register=async (req, res)=>{
-    //extract common data
-    const {fullName, email, password, role}= req.body;
+// ---------------- Registration ----------------
+export const register = async (req, res) => {
+  const { fullName, email, password, role, inviteCode } = req.body;
 
-    try{
-        //hash password
-        const hashed= await bcrypt.hash(password, 10);
-        let user;
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    let user;
 
-        //if one operation fails, the whole thing is scrapped. This prevents partial data creation
-        await prisma.$transaction(async (tx)=>{
-            //store the base data
-            user= await tx.user.create({data: {fullName, email, password: hashed, role}})
+    await prisma.$transaction(async (tx) => {
+      // Invite code required for elevated roles
+      let inviteRecord;
+      if ((role === "DOCTOR" || role === "LAB_TECH")) {
+        if (!inviteCode) throw new Error("Invite code required for elevated roles");
 
-            //check roles to store extra data
-            if (role==='DOCTOR'){
-                //extract doctor fields
-                const {phoneNumber, licenseNumber, yearsOfExperience, departmentId}= req.body;
+        inviteRecord = await tx.inviteCode.findUnique({ where: { code: inviteCode } });
+        if (!inviteRecord) throw new Error("Invalid invite code");
+        if (inviteRecord.used) throw new Error("Invite code already used");
+        if (inviteRecord.role !== role) throw new Error("Invite code does not match role");
+      }
 
-                //create doctor
-                const doctor= await tx.doctor.create({data: {id: user.id, phoneNumber, licenseNumber, yearsOfExperience,departmentId}});
+      // Create base user
+      user = await tx.user.create({ data: { fullName, email, password: hashed, role } });
 
-            }else if(role==='PATIENT'){
-                //extract patient fields
-                const {address, phoneNumber, allergies, gender, bloodType, dateOfBirth}= req.body;
+      // Role-specific creation
+      if (role === "DOCTOR") {
+        const { phoneNumber, licenseNumber, yearsOfExperience, departmentId } = req.body;
+        await tx.doctor.create({ data: { id: user.id, phoneNumber, licenseNumber, yearsOfExperience, departmentId } });
+      } else if (role === "LAB_TECH") {
+        const { phoneNumber, departmentId } = req.body;
+        await tx.labTech.create({ data: { id: user.id, phoneNumber, departmentId } });
+      } else if (role === "PATIENT") {
+        const { address, phoneNumber, allergies, gender, bloodType, dateOfBirth } = req.body;
+        await tx.patient.create({ data: { id: user.id, address, phoneNumber, allergies, gender, bloodType, dateOfBirth } });
+      }
 
-                //create patient
-                const patient= await tx.patient.create({data: {id: user.id, address, phoneNumber, allergies, gender, bloodType, dateOfBirth}});
-            }
-        });
-        
-        //generate token
-        const token =generateToken({id: user.id, role: user.role, fullName: user.fullName});
+      // Mark invite code as used
+      if (inviteRecord) {
+        await tx.inviteCode.update({ where: { id: inviteRecord.id }, data: { used: true } });
+      }
+    });
 
-        res.status(201).json({message: 'signup was successful', token, data: {name: user.fullName, email: user.email}});
+    const token = generateToken({ id: user.id, role: user.role, fullName: user.fullName });
 
-    }catch(error){
-        //log error to the console for dev
-        console.error('signup error: ', error);
+    res.status(201).json({
+      success: true,
+      message: "Signup successful",
+      token,
+      data: { name: user.fullName, email: user.email },
+    });
 
-        res.status(500).json({message: 'signup failed, internal server error'});
+  } catch (error) {
+    console.error("signup error:", error);
+    res.status(500).json({ success: false, message: error.message || "Signup failed, internal server error" });
+  }
+};
+
+// ---------------- Login ----------------
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: "Invalid login details" });
+
+    // Check verification for elevated roles
+    if (user.role === "DOCTOR") {
+    const doctor = await prisma.doctor.findUnique({ where: { id: user.id } });
+    if (!doctor.isVerified) return res.status(403).json({ message: "Account pending verification by admin" });
+    } else if (user.role === "LAB_TECH") {
+    const labTech = await prisma.labTech.findUnique({ where: { id: user.id } });
+    if (!labTech.isVerified) return res.status(403).json({ message: "Account pending verification by admin" });
     }
 
-}
+    // If PATIENT or verified elevated roles, proceed
+    const token = generateToken({ id: user.id, role: user.role, fullName: user.fullName });
 
-export const login= async (req, res)=>{
-    //grab user info from req.body
-    const {email, password}= req.body 
+    res.status(200).json({success: true, message: 'login was successful', data: {name: user.fullName, email}});
 
-    try{
-        //grab passwords from the existing user
-        const user= await prisma.user.findUnique({where: {email}});
-
-        //check if user passwords match
-        const isMatch= await bcrypt.compare(password, user.password);
-
-        //deny access if not matching
-        if(!isMatch) return res.status(401).json({message: 'Invalid login details'});
-
-        //generate token
-        const token= generateToken({id: user.id, role: user.role, fullName: user.fullName});
-
-        res.status(200).json({message: 'login successful', token, data: {name: user.fullName, email}});
-
-    }catch(error){
-        //log error to the console for dev
-        console.error('login error: ', error);
-
-        res.status(500).json({message: 'login failed, internal server error'});
-
-    }
-
-}
+  } catch (error) {
+    console.error("login error:", error);
+    res.status(500).json({success: false, message: "Login failed, internal server error" });
+  }
+};
