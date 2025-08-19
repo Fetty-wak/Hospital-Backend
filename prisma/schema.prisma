@@ -179,6 +179,7 @@ model Appointment {
   createdBy    Int
   cancelledBy  Int? // only filled upon cancellation
   updatedBy    Int? // only filled when user updates appointment
+  createDiagnosis Boolean @default(false)
 
   // Relations
   patient      Patient     @relation(fields: [patientId], references: [id])
@@ -192,7 +193,7 @@ model Appointment {
 // DIAGNOSIS MODEL
 model Diagnosis {
   id            Int      @id @default(autoincrement())
-  symptoms      String
+  symptoms      String?  //filled by the doctor
   prescribed    Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -222,7 +223,7 @@ model LabTest {
 
 model LabResult {
   id          Int       @id @default(autoincrement())
-  labTechId   Int       //lab technician filling the data
+  labTechId   Int?       //lab technician filling the data
   diagnosisId Int
   labTestId   Int       // type of test being performed
   status      LabResultStatus @default(PENDING)
@@ -233,7 +234,7 @@ model LabResult {
   // Relations
   diagnosis   Diagnosis @relation(fields: [diagnosisId], references: [id])
   labTest     LabTest   @relation(fields: [labTestId], references: [id])
-  labTech     LabTech   @relation(fields: [labTechId], references: [id])
+  labTech     LabTech?   @relation(fields: [labTechId], references: [id])
 }
 
 // PRESCRIPTION MODEL

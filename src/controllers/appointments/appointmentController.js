@@ -365,10 +365,47 @@ export const cancelAppointment = async (req, res) => {
   }
 };
 
+export const updateAppointmentNotes = async (req, res) => {
+  try {
+    if (req.user.role!=='DOCTOR') {
+      return res.status(403).json({success: false, message: "Not authorized to update this appointment" });
+    }
+
+    //extract relevant data
+    const { id: appointmentId } = req.params;
+    const { outcome, createDiagnosis } = req.body;
+
+    // pull up the appointment 
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: Number(appointmentId) },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: "Appointment not found" });
+    }
+
+    // Update fields
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: Number(appointmentId) },
+      data: {
+        ...(outcome !== undefined && { outcome }),
+        ...(createDiagnosis !== undefined && { createDiagnosis }),
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Appointment notes updated successfully",
+      appointment: updatedAppointment,
+    });
+  } catch (error) {
+    console.error("Error updating appointment notes:", error);
+    return res.status(500).json({success: false, message: "Internal server error" });
+  }
+};
+
 export const completeAppointment = async (req, res) => {
   try {
-    
-    const { outcome } = req.body;
     const { id: userId, role, fullName } = req.user;
 
     const appointmentId = parseInt(req.params.id, 10);
@@ -377,8 +414,8 @@ export const completeAppointment = async (req, res) => {
     }
 
     // Only doctors can complete
-    if (role !== "DOCTOR") {
-      return res.status(403).json({ message: "Only doctors can complete appointments" });
+    if (role !== 'DOCTOR') {
+      return res.status(403).json({ message: 'Only doctors can complete appointments' });
     }
 
     // Retrieve appointment
@@ -387,43 +424,65 @@ export const completeAppointment = async (req, res) => {
     });
 
     if (!appointment) {
-      return res.status(404).json({ message: "Appointment not found" });
+      return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    if (appointment.status === "COMPLETED") {
-      return res.status(400).json({ message: "Appointment is already completed" });
+    if (appointment.status === 'COMPLETED') {
+      return res.status(400).json({ message: 'Appointment is already completed' });
     }
 
-    // Update appointment
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: {
-        status: "COMPLETED",
-        outcome,
-      },
+    // Ensure outcome notes exist before completion
+    if (!appointment.outcome || appointment.outcome.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot complete appointment without outcome notes',
+      });
+    }
+    
+
+    const {updatedAppointment, diagnosis}= await prisma.$transaction(async (tx) => {
+      // Mark appointment completed
+      const updatedAppointment = await tx.appointment.update({
+        where: { id: appointmentId },
+        data: { status: 'COMPLETED' },
+      });
+
+      let diagnosis = null;
+      // If flag set, create diagnosis
+      if (updatedAppointment.createDiagnosis) {
+        diagnosis = await tx.diagnosis.create({
+          data: {
+            doctorId: userId, // same as appointment.doctorId in your schema (Doctor.id === User.id)
+            patientId: updatedAppointment.patientId,
+            appointmentId: updatedAppointment.id,
+            // symptoms left for the doctor to fill later
+          },
+        });
+      }
+
+      return {updatedAppointment, diagnosis};
     });
 
     // Notify patient
-    const message = `Your appointment with Dr. ${fullName} has been marked as completed. Outcome: ${outcome}`;
+    const message = `Your appointment with Dr. ${fullName} has been marked as completed. Outcome: ${updatedAppointment.outcome}`;
     await notify({
       message,
-      type: "APPOINTMENT",
+      type: 'APPOINTMENT',
       initiatorId: userId,
       recipientIds: [updatedAppointment.patientId],
       eventId: updatedAppointment.id,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Appointment completed successfully",
-      data: { updatedAppointment },
+      message: 'Appointment completed successfully',
+      data: { updatedAppointment, ...(diagnosis && { diagnosis }) },
     });
-
   } catch (error) {
-    console.error("Error completing appointment:", error.message);
-    res.status(500).json({
+    console.error('Error completing appointment:', error.message);
+    return res.status(500).json({
       success: false,
-      message: "Failed to complete appointment",
+      message: 'Failed to complete appointment',
       error: error.message,
     });
   }
