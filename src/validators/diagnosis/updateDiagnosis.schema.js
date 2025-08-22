@@ -7,6 +7,18 @@ export const updateDiagnosisSchema = z
     outcome: z.string().transform(str => str.trim()).optional(),
     prescribed: z.boolean().optional(),
     labTests: z.array(z.number().int().positive()).optional(),
+    prescriptions: z
+      .array(
+        z.object({
+          drugId: z.number().int().positive(),
+          dosage: z.string().transform(str => str.trim()),
+          frequency: z.string().transform(str => str.trim()),
+          duration: z.string().transform(str => str.trim()),
+          instructions: z.string().transform(str => str.trim()).optional(),
+        })
+      )
+      .optional(),
+    requiresLabTests: z.boolean().optional(),
   })
   .strict()
   .refine(

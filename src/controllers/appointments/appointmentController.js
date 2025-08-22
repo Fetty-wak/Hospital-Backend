@@ -77,30 +77,102 @@ export const createAppointment = async (req, res) => {
   }
 };
 
-export const getAllAppointments= async (req, res)=>{
-    //check the role of the logged in user and display all their appointments
-    const {id, fullName, role}= req.user;
-    try{
-        let appointments;
-        if(role==='DOCTOR'){
-            appointments= await prisma.appointment.findMany({where: {doctorId: id}});
-        
-        }else if(role==='PATIENT'){
-            appointments= await prisma.appointment.findMany({where: {patientId: id}});
+export const getAllAppointments = async (req, res) => {
+  const { id: userId, role } = req.user;
 
-        }else{
-            appointments= await prisma.appointment.findMany();
+  // Parse pagination safely
+  const limitRaw = parseInt(req.query.limit, 10);
+  const pageRaw = parseInt(req.query.page, 10);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 10;
+  const page = Number.isFinite(pageRaw) ? Math.max(pageRaw, 1) : 1;
+  const skip = (page - 1) * limit;
 
-        }
+  // Parse filters
+  const { status, start, end } = req.query;
 
-        if(!appointments) return res.status(200).json({success: true, data: {appointments}});
+  // Admin-only optional filters
+  const doctorIdQ = req.query.doctorId ? parseInt(req.query.doctorId, 10) : undefined;
+  const patientIdQ = req.query.patientId ? parseInt(req.query.patientId, 10) : undefined;
 
-        res.status(200).json({success: true, data: {appointments}});
+  // Build where clause based on role
+  const where = {};
 
-    }catch(error){
-        console.error('get appointments error: ' ,error);
-        res.status(500).json({success: false, error: error.message});
+  try {
+    // Role scoping
+    if (role === "PATIENT") {
+      where.patientId = userId;
+    } else if (role === "DOCTOR") {
+      where.doctorId = userId;
+    } else if (role === "ADMIN") {
+      // Admin may filter down by doctorId/patientId
+      if (Number.isFinite(doctorIdQ)) where.doctorId = doctorIdQ;
+      if (Number.isFinite(patientIdQ)) where.patientId = patientIdQ;
+    } else {
+      // Other roles (e.g., LABTECH) shouldn't access appointment lists globally
+      return res.status(403).json({ success: false, message: "Unauthorized to access appointments." });
     }
+
+    // Status filter (applies to all roles if provided)
+    if (status) {
+      // optionally normalize to uppercase
+      where.status = String(status).toUpperCase();
+    }
+
+    // Date range filter (applies to all roles if provided)
+    if (start || end) {
+      const dateFilter = {};
+      if (start) {
+        const s = new Date(start);
+        if (Number.isNaN(s.getTime())) {
+          return res.status(400).json({ success: false, message: "Invalid 'start' date." });
+        }
+        // start of day
+        s.setHours(0, 0, 0, 0);
+        dateFilter.gte = s;
+      }
+      if (end) {
+        const e = new Date(end);
+        if (Number.isNaN(e.getTime())) {
+          return res.status(400).json({ success: false, message: "Invalid 'end' date." });
+        }
+        // end of day (inclusive)
+        e.setHours(23, 59, 59, 999);
+        dateFilter.lte = e;
+      }
+      where.date = dateFilter;
+    }
+
+    // Total count for pagination
+    const totalCount = await prisma.appointment.count({ where });
+
+    // Data page
+    const appointments = await prisma.appointment.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { date: "desc" },
+      include: {
+        // Minimal, non-medical details useful for scheduling views
+        patient: { include: { user: true } },
+        doctor: { include: { user: true, department: true } },
+        // you can also include createdUser/cancelUser if your UI needs it
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: { appointments },
+      pagination: {
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit,
+      },
+    });
+  } catch (error) {
+    console.error("get appointments error:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
 };
 
 export const getAppointmentById = async (req, res) => {

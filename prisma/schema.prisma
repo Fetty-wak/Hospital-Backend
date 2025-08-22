@@ -195,6 +195,7 @@ model Diagnosis {
   id            Int      @id @default(autoincrement())
   symptoms      String?  //filled by the doctor
   prescribed    Boolean  @default(false)
+  requiresLabTests  Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   description   String?  // filled by doctor either during or post creation
@@ -203,6 +204,7 @@ model Diagnosis {
   patientId     Int
   status DiagnosisStatus @default(PENDING)
   appointmentId Int?     @unique
+  completedAt   DateTime? //filled upon completion
 
   // Relations
   doctor        Doctor        @relation(fields: [doctorId], references: [id])
@@ -241,17 +243,31 @@ model LabResult {
 
 // PRESCRIPTION MODEL
 model Prescription {
-  id           Int      @id @default(autoincrement())
-  medication   String
+  id           Int       @id @default(autoincrement())
+  diagnosisId  Int
+  drugId       Int
   dosage       String
   frequency    String
-  startDate    DateTime
-  endDate      DateTime?
-  diagnosisId  Int
+  duration     String
+  instructions String?
 
-  // Relations
-  diagnosis    Diagnosis @relation(fields: [diagnosisId], references: [id])
+  // relationships
+  diagnosis Diagnosis @relation(fields: [diagnosisId], references: [id])
+  drug      Drug      @relation(fields: [drugId], references: [id])
 }
+
+//DRUGS MODEL
+model Drug {
+  id          Int    @id @default(autoincrement())
+  name        String
+  description String?
+  dosageForm  String   // e.g. tablet, syrup, injection
+  strength    String   // e.g. 500mg, 5ml/100mg
+
+  // relationships
+  prescriptions Prescription[]
+}
+
 
 // NOTIFICATION MODEL
 model Notification {
