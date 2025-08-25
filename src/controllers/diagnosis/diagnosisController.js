@@ -6,11 +6,6 @@ export const createDiagnosis = async (req, res) => {
     const { id: doctorId, role } = req.user;
     const { patientId} = req.body; 
 
-    //limit access to doctors only
-    if (role !== 'DOCTOR') {
-      return res.status(403).json({ success: false, message: 'Only doctors can create a diagnosis' });
-    }
-
     //ensure patient is in the system
     const patient = await prisma.patient.findUnique({ where: { id: patientId } });
     if (!patient) {
@@ -57,10 +52,6 @@ export const updateDiagnosis = async (req, res) => {
   const { id: diagnosisIdRaw } = req.params;
 
   try {
-    // Doctor-only
-    if (role !== 'DOCTOR') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
 
     const diagnosisId = parseInt(diagnosisIdRaw, 10);
     if (!Number.isFinite(diagnosisId)) {
@@ -167,11 +158,6 @@ export const getDiagnosis = async (req, res) => {
     filterBy = "created" // default date filter
   } = req.query;
 
-  // Only PATIENT and DOCTOR can access
-  if (!["PATIENT", "DOCTOR"].includes(role)) {
-    return res.status(403).json({ success: false, message: "Access denied." });
-  }
-
   // Parse pagination
   const page = Number.isFinite(parseInt(pageRaw, 10)) ? Math.max(parseInt(pageRaw, 10), 1) : 1;
   const limit = Number.isFinite(parseInt(limitRaw, 10)) ? Math.min(Math.max(parseInt(limitRaw, 10), 1), 100) : 10;
@@ -269,10 +255,6 @@ export const completeDiagnosis = async (req, res) => {
   const { id: diagnosisIdRaw } = req.params;
 
   try {
-    // Doctor-only
-    if (role !== 'DOCTOR') {
-      return res.status(403).json({ success: false, message: 'Only doctors can complete a diagnosis' });
-    }
 
     const diagnosisId = parseInt(diagnosisIdRaw, 10);
     if (!Number.isFinite(diagnosisId)) {

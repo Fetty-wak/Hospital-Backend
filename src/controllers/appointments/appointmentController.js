@@ -439,10 +439,6 @@ export const cancelAppointment = async (req, res) => {
 
 export const updateAppointmentNotes = async (req, res) => {
   try {
-    if (req.user.role!=='DOCTOR') {
-      return res.status(403).json({success: false, message: "Not authorized to update this appointment" });
-    }
-
     //extract relevant data
     const { id: appointmentId } = req.params;
     const { outcome, createDiagnosis } = req.body;
@@ -483,11 +479,6 @@ export const completeAppointment = async (req, res) => {
     const appointmentId = parseInt(req.params.id, 10);
     if (isNaN(appointmentId)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
-    }
-
-    // Only doctors can complete
-    if (role !== 'DOCTOR') {
-      return res.status(403).json({ message: 'Only doctors can complete appointments' });
     }
 
     // Retrieve appointment

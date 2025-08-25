@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-export const accessChecker = async (req, res, next) => {
+export const isInvolved = async (req, res, next) => {
   try {
     const { id: appointmentId } = req.params;
     const { id: userId, role } = req.user;

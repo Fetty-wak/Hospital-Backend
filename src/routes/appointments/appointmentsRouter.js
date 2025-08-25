@@ -7,7 +7,8 @@ import { createAppointment, getAllAppointments, getAppointmentById, updateAppoin
 //import middleware (input validation, role injection)
 import validator from "../../middleware/formValidator.js";
 import { roleInjector } from "../../middleware/roleBasedInjector.js";
-import { accessChecker } from "../../middleware/appointmentAccessCheck.js";
+import { isInvolved } from "../../middleware/appointmentInvolvementCheck.js";
+import { accessChecker } from "../../middleware/universalAccessCheck.js";
 
 //import zod schemas
 import { createAppointmentSchema } from "../../validators/appointment/appointmentCreation.schema.js";
@@ -18,11 +19,11 @@ import { appointmentNotesSchema } from "../../validators/appointment/appointment
 //route definitions
 router.post('/', validator(createAppointmentSchema), roleInjector, createAppointment);
 router.get('/', getAllAppointments);
-router.get('/:id', accessChecker, getAppointmentById );
-router.patch('/:id', validator(updateAppointmentSchema),accessChecker, updateAppointment );
-router.patch('/:id/confirm', accessChecker, confirmAppointment);
-router.patch('/:id/cancel',validator(cancelAppointmentSchema),accessChecker, cancelAppointment );
-router.patch('/:id/Notes', validator(appointmentNotesSchema),accessChecker, updateAppointmentNotes);
-router.patch('/:id/complete', completeAppointment);
+router.get('/:id', isInvolved, getAppointmentById );
+router.patch('/:id',isInvolved, validator(updateAppointmentSchema), updateAppointment );
+router.patch('/:id/confirm', isInvolved, confirmAppointment);
+router.patch('/:id/cancel',isInvolved,validator(cancelAppointmentSchema), cancelAppointment );
+router.patch('/:id/Notes',isInvolved, accessChecker('DOCTOR'), validator(appointmentNotesSchema), updateAppointmentNotes);
+router.patch('/:id/complete',isInvolved, accessChecker('DOCTOR'), completeAppointment);
 
 export default router;

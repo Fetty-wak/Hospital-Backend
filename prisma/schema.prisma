@@ -30,6 +30,7 @@ enum DiagnosisStatus {
 enum InvitedRoles {
   DOCTOR
   LAB_TECH
+  PHARMACIST
 }
 
 enum Role {
@@ -37,6 +38,7 @@ enum Role {
   DOCTOR
   ADMIN
   LAB_TECH
+  PHARMACIST
 }
 
 enum Gender {
@@ -71,6 +73,19 @@ enum NotificationType {
   OTHER
 }
 
+enum DosageForm {
+  TABLET
+  CAPSULE
+  SYRUP
+  INJECTION
+  CREAM
+  OINTMENT
+  DROPS
+  SUPPOSITORY
+  SPRAY
+  OTHER
+}
+
 // ========== MODELS ==========
 
 // USER MODEL
@@ -87,6 +102,7 @@ model User {
   patient             Patient?
   doctor              Doctor?
   labTech             LabTech?
+  pharmacist          Pharmacist?
   inbox               Notification[] @relation("Inbox")
   outbox              Notification[] @relation("Outbox")
   cancelledAppointments  Appointment[]  @relation("CancelledByUser")
@@ -111,6 +127,7 @@ model Patient {
   diagnoses    Diagnosis[]
 }
 
+//LAB TECHNICIAN MODEL
 model LabTech {
   id           Int      @id             // same as User id
   phoneNumber  String
@@ -139,6 +156,18 @@ model Doctor {
   diagnoses         Diagnosis[]
 }
 
+//PHARMACIST MODEL
+model Pharmacist {
+  id  Int       @id 
+  phoneNumber  String
+  departmentId Int
+  isVerified   Boolean   @default(false) //changed by admin
+
+  //relationships
+  user          User          @relation(fields: [id], references: [id])
+  department    Department    @relation(fields: [departmentId], references: [id])
+}
+
 //INVITE CODE MODEL FOR SPECIAL ROLES SIGNUPS
 model InviteCode {
   id        Int       @id @default(autoincrement())
@@ -162,6 +191,7 @@ model Department {
   // Relations
   doctors  Doctor[]
   labTechs LabTech[]
+  pharmacists Pharmacist[]
 }
 
 // APPOINTMENT MODEL
@@ -214,10 +244,13 @@ model Diagnosis {
   labresults    LabResult[]
 }
 
+//LAB TESTS MODEL
 model LabTest {
   id        Int       @id @default(autoincrement())
   name      String    @unique       // e.g., "Complete Blood Count", "Chest X-Ray"
   code      String?   @unique       // optional standardized code (like LOINC)
+  description String
+  available  Boolean  @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -225,6 +258,7 @@ model LabTest {
   labResults LabResult[]
 }
 
+//LAB RESULTS MODEL
 model LabResult {
   id          Int       @id @default(autoincrement())
   labTechId   Int?       //lab technician filling the data
@@ -243,25 +277,26 @@ model LabResult {
 
 // PRESCRIPTION MODEL
 model Prescription {
-  id           Int       @id @default(autoincrement())
-  diagnosisId  Int
-  drugId       Int
-  dosage       String
-  frequency    String
-  duration     String
-  instructions String?
+  id              Int       @id @default(autoincrement())
+  diagnosisId     Int
+  drugId          Int
+  dosePerAdmin    Int       // 2 tablets
+  frequencyPerDay Int       // 3 times per day
+  durationDays    Int       // 5 days
+  instructions    String?
 
-  // relationships
   diagnosis Diagnosis @relation(fields: [diagnosisId], references: [id])
   drug      Drug      @relation(fields: [drugId], references: [id])
 }
+
 
 //DRUGS MODEL
 model Drug {
   id          Int    @id @default(autoincrement())
   name        String
   description String?
-  dosageForm  String   // e.g. tablet, syrup, injection
+  dosageForm  DosageForm
+  available   Boolean @default(true)
   strength    String   // e.g. 500mg, 5ml/100mg
 
   // relationships
