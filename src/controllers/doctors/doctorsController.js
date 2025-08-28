@@ -176,8 +176,9 @@ export const getDoctorById = async (req, res) => {
 };
 
 export const updateDoctor = async (req, res) => {
+  //extract doctor id
   const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
+  if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({
       success: false,
       message: 'Invalid doctor id',
@@ -185,31 +186,14 @@ export const updateDoctor = async (req, res) => {
     });
   }
 
-  const {
-    fullName,
-    email,
-    phoneNumber,
-    licenseNumber,
-    yearsOfExperience,
-    departmentId,
-  } = req.body;
-
-  // Build update objects with only provided fields
-  const userData = {
-    ...(fullName && { fullName }),
-    ...(email && { email }),
-  };
-
-  const doctorData = {
-    ...(phoneNumber && { phoneNumber }),
-    ...(licenseNumber && { licenseNumber }),
-    ...(Number.isInteger(yearsOfExperience) && { yearsOfExperience }),
-    ...(Number.isInteger(departmentId) && { departmentId }),
-  };
-
   try {
-    const existing = await prisma.doctor.findUnique({ where: { id } });
-    if (!existing) {
+    // Fetch doctor
+    const doctor = await prisma.doctor.findUnique({
+      where: { id },
+      include: { user: true, department: true },
+    });
+
+    if (!doctor) {
       return res.status(404).json({
         success: false,
         message: 'Doctor not found',
@@ -217,50 +201,107 @@ export const updateDoctor = async (req, res) => {
       });
     }
 
-    // Determine critical fields that trigger re-verification
-    const criticalFields = ['phoneNumber', 'licenseNumber', 'yearsOfExperience', 'departmentId'];
-    const updatingCritical = criticalFields.some(field => field in doctorData);
+    const isDoctorSelf = req.user.id === doctor.id;
+    const { phoneNumber, licenseNumber, departmentId, practiceStartDate } = req.body;
 
-    // If updater is not admin and critical fields changed, set isVerified false
-    if (req.user.role !== 'ADMIN' && updatingCritical) {
-      doctorData.isVerified = false;
+    // Build update object
+    const doctorData = {};
 
-      // Fetch all admin IDs for notification
-      const admins = await prisma.user.findMany({
-        where: { role: 'ADMIN' },
-        select: { id: true },
+    if (req.user.role === 'DOCTOR' && !isDoctorSelf) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied',
+        data: {},
       });
-      const adminIds = admins.map(a => a.id);
 
-      await notify({
-        type: 'DOCTOR_UPDATE',
-        message: `Doctor ${existing.user.fullName} updated critical information.`,
-        initiatorId: req.user.id,
-        recipientIds: adminIds,
-        eventId: id,
-      });
-    }
-
-    const updated = await prisma.$transaction(async (tx) => {
-      if (Object.keys(userData).length) {
-        await tx.user.update({ where: { id }, data: userData, select: { id: true } });
+    } else if (isDoctorSelf) {
+      // --- Doctor updating self ---
+      if (doctor.pendingUpdate) {
+        return res.status(403).json({
+          success: false,
+          message: 'You have a pending update awaiting admin verification',
+          data: null,
+        });
       }
 
-      return await tx.doctor.update({
-        where: { id },
-        data: doctorData,
-        include: {
-          department: { select: { id: true, name: true } },
-          user: { select: { id: true, email: true, fullName: true, role: true } },
-        },
-      });
+      // Critical field checks (No pending updates)
+      if (licenseNumber || practiceStartDate) {
+        if (doctor.isVerified) {
+          return res.status(403).json({
+            success: false,
+            message: 'Cannot update verified license number or practice start date',
+            data: null,
+          });
+        }
+        //no pending updates and not verified (allow updates to critical fields)
+        if (licenseNumber) doctorData.licenseNumber = licenseNumber;
+        if (practiceStartDate) doctorData.practiceStartDate = new Date(practiceStartDate);
+      }
+
+      if (departmentId && Number.isInteger(departmentId)) {
+        doctorData.departmentId = departmentId;
+        doctorData.isVerified = false;
+        doctorData.pendingUpdate = true;
+
+        // Notify admins of department change
+        const admins = await prisma.user.findMany({
+          where: { role: 'ADMIN' },
+          select: { id: true },
+        });
+        const adminIds = admins.map(a => a.id);
+
+        await notify({
+          type: 'DOCTOR_UPDATE',
+          message: `Doctor ${doctor.user.fullName} changed department; awaiting verification.`,
+          initiatorId: req.user.id,
+          recipientIds: adminIds,
+          eventId: id,
+        });
+      }
+      //include phonenumber if present
+      if (phoneNumber) doctorData.phoneNumber = phoneNumber;
+
+    } else {
+      // --- Admin updating doctor ---
+      if (departmentId && Number.isInteger(departmentId)) {
+        doctorData.departmentId = departmentId;
+
+        // Notify the doctor
+        await notify({
+          type: 'DOCTOR_UPDATE',
+          message: `Admin updated your department to ${departmentId}.`,
+          initiatorId: req.user.id,
+          recipientIds: [doctor.user.id],
+          eventId: id,
+        });
+      }
+      // Admin cannot change licenseNumber or practiceStartDate
+    }
+
+    // Apply updates
+    const updated = await prisma.doctor.update({
+      where: { id },
+      data: doctorData,
+      include: {
+        user: { select: { id: true, fullName: true, email: true, role: true } },
+        department: { select: { id: true, name: true } },
+      },
     });
+
+    // Compute dynamic years of experience from practiceStartDate
+    let yearsOfExperience = null;
+    if (updated.practiceStartDate) {
+      yearsOfExperience = Math.floor(
+        (new Date() - new Date(updated.practiceStartDate)) / (1000 * 60 * 60 * 24 * 365)
+      );
+    }
 
     return res.status(200).json({
       success: true,
       message: 'Doctor updated successfully',
-      data: updated, // direct object
+      data: { ...updated, yearsOfExperience },
     });
+
   } catch (err) {
     console.error(err);
     return res.status(500).json({
@@ -270,5 +311,3 @@ export const updateDoctor = async (req, res) => {
     });
   }
 };
-
-

@@ -70,6 +70,10 @@ enum NotificationType {
   APPOINTMENT
   DIAGNOSIS
   PRESCRIPTION
+  DOCTOR_UPDATE
+  PHARMACIST_UPDATE
+  LABTECH_UPDATE
+  LAB_RESULT
   OTHER
 }
 
@@ -97,6 +101,7 @@ model User {
   role                Role           @default(PATIENT)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+  isActive            Boolean        @default(true)
 
   // Relations
   patient             Patient?
@@ -133,6 +138,8 @@ model LabTech {
   phoneNumber  String
   departmentId Int
   isVerified   Boolean  @default(false)
+  pendingUpdate Boolean @default(false)
+  startDate     DateTime @default(now())
 
   // Relations
   user         User      @relation(fields: [id], references: [id])
@@ -146,8 +153,10 @@ model Doctor {
   phoneNumber       String
   licenseNumber     String    @unique
   isVerified        Boolean   @default(false)
-  yearsOfExperience Int
+  practiceStartDate DateTime
   departmentId      Int
+  pendingUpdate     Boolean   @default(false)
+  startDate         DateTime  @default(now())
 
   // Relations
   user              User       @relation(fields: [id], references: [id])
@@ -162,6 +171,8 @@ model Pharmacist {
   phoneNumber  String
   departmentId Int
   isVerified   Boolean   @default(false) //changed by admin
+  pendingUpdate Boolean  @default(false)
+  startDate     DateTime @default(now())
 
   //relationships
   user          User          @relation(fields: [id], references: [id])

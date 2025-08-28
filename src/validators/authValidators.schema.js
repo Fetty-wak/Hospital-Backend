@@ -22,7 +22,7 @@ const patientSchema = z.object({
 const doctorSchema = z.object({
   phoneNumber: z.string().transform(10, 'Enter a valid phone number').transform(str => str.trim()),
   licenseNumber: z.string().transform(str => str.trim()),
-  yearsOfExperience: z.number().int().min(0).max(60),
+  practiceStartDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Invalid date" }),
   departmentId: z.number().int().positive(),
   inviteCode: z.string()
     .length(8)

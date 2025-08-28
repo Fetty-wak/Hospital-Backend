@@ -14,7 +14,7 @@ export const register = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       // Invite code required for elevated roles
       let inviteRecord;
-      if ((role === "DOCTOR" || role === "LAB_TECH")) {
+      if ((role === "DOCTOR" || role === "LAB_TECH" || role==='PHARMACIST')) {
         if (!inviteCode) throw new Error("Invite code required for elevated roles");
 
         inviteRecord = await tx.inviteCode.findUnique({ where: { code: inviteCode } });
@@ -28,8 +28,8 @@ export const register = async (req, res) => {
 
       // Role-specific creation
       if (role === "DOCTOR") {
-        const { phoneNumber, licenseNumber, yearsOfExperience, departmentId } = req.body;
-        await tx.doctor.create({ data: { id: user.id, phoneNumber, licenseNumber, yearsOfExperience, departmentId } });
+        const { phoneNumber, licenseNumber, practiceStartDate, departmentId } = req.body;
+        await tx.doctor.create({ data: { id: user.id, phoneNumber, licenseNumber, practiceStartDate, departmentId } });
       } else if (role === "LAB_TECH") {
         const { phoneNumber, departmentId } = req.body;
         await tx.labTech.create({ data: { id: user.id, phoneNumber, departmentId } });
@@ -68,21 +68,24 @@ export const login = async (req, res) => {
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid login details" });
+    if (!isMatch) return res.status(401).json({success: false, message: "Invalid login details" });
 
     // Check verification for elevated roles
     if (user.role === "DOCTOR") {
-    const doctor = await prisma.doctor.findUnique({ where: { id: user.id } });
-    if (!doctor.isVerified) return res.status(403).json({ message: "Account pending verification by admin" });
+      const doctor = await prisma.doctor.findUnique({ where: { id: user.id } });
+      if (!doctor.isVerified) return res.status(403).json({success: false, message: "Account pending verification by admin" });
     } else if (user.role === "LAB_TECH") {
-    const labTech = await prisma.labTech.findUnique({ where: { id: user.id } });
-    if (!labTech.isVerified) return res.status(403).json({ message: "Account pending verification by admin" });
+      const labTech = await prisma.labTech.findUnique({ where: { id: user.id } });
+      if (!labTech.isVerified) return res.status(403).json({success: false, message: "Account pending verification by admin" });
+    }else if(user.role==="PHARMACIST"){
+      const pharmacist= await prisma.pharmacist.findUnique({where: {id: user.id}});
+      if(!pharmacist.isVerified) return res.status(403).json({success: false, message: 'Account pending verification by admin'});
     }
 
     // If PATIENT or verified elevated roles, proceed
     const token = generateToken({ id: user.id, role: user.role, fullName: user.fullName });
 
-    res.status(200).json({success: true, message: 'login was successful', data: {name: user.fullName, email}});
+    res.status(200).json({success: true, message: 'login was successful', data: {id: user.id, name: user.fullName, email}});
 
   } catch (error) {
     console.error("login error:", error);

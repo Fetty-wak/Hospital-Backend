@@ -2,7 +2,7 @@ import {Router} from 'express';
 const router= Router();
 
 //controller import
-import {createPatient, getAllPatients, getPatientById } from '../../controllers/patients/patientsController.js';
+import {createPatient, getAllPatients, getPatientById, updatePatient } from '../../controllers/patients/patientsController.js';
 
 //middleware import
 import validator from '../../middleware/formValidator.js';
@@ -17,7 +17,7 @@ import {updatePatientSchema} from '../../validators/patients/updatePatients.sche
 router.post('/', accessChecker('ADMIN'), validator(adminPatientSchema), emailExists(false), createPatient);
 router.get('/', accessChecker(['ADMIN', 'DOCTOR', 'PHARMACIST', 'LAB_TECH']), getAllPatients);
 router.get('/:id', getPatientById);
-router.patch('/:id', accessChecker(['PATIENT', 'ADMIN', 'DOCTOR'])); //unfinished
+router.patch('/:id', accessChecker(['PATIENT', 'ADMIN', 'DOCTOR']), validator(updatePatientSchema),updatePatient); 
 
 
 export default router;
