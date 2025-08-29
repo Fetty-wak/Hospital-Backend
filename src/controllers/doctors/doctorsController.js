@@ -311,3 +311,23 @@ export const updateDoctor = async (req, res) => {
     });
   }
 };
+
+export const verifyDoctor= async (req, res)=>{
+  const id= Number(req.params.id);
+  if(!Number.isInteger(id)){
+    res.status(400).json({success: false, message: 'Invalid doctor Id', data: null});
+  }
+
+  try{
+    const doctor= await prisma.doctor.findUnique({where: {id}});
+    if(!doctor) return res.status(400).json({success: false, message: 'Invalid doctor Id', data: null});
+
+    //verify
+    const verified= await prisma.doctor.update({where: {id}, data: {isVerified: true}});
+
+    res.status(200).json({success: true, message: 'Doctor verified successfully', data: {verified}});
+  }catch(error){
+    console.error('Verification Error ', error);
+    res.status(500).json({success: false, message: 'verification failed. Internal Server Error', data: null});
+  }
+}

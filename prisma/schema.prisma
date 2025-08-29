@@ -177,6 +177,7 @@ model Pharmacist {
   //relationships
   user          User          @relation(fields: [id], references: [id])
   department    Department    @relation(fields: [departmentId], references: [id])
+  prescription Prescription[]
 }
 
 //INVITE CODE MODEL FOR SPECIAL ROLES SIGNUPS
@@ -296,8 +297,13 @@ model Prescription {
   durationDays    Int       // 5 days
   instructions    String?
 
+  dispensed       Boolean   @default(false)
+  dispensedAt     DateTime? //only filled after dispensement
+  pharmacistId    Int? //also filled by the pharmacist in charge
+
   diagnosis Diagnosis @relation(fields: [diagnosisId], references: [id])
   drug      Drug      @relation(fields: [drugId], references: [id])
+  pharmacist Pharmacist? @relation(fields: [pharmacistId], references: [id])
 }
 
 

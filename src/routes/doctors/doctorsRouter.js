@@ -2,7 +2,7 @@ import {Router} from 'express';
 const router= Router();
 
 //controller import
-import {createDoctor, getDoctorById, getDoctors, updateDoctor } from '../../controllers/doctors/doctorsController.js';
+import {createDoctor, getDoctorById, getDoctors, updateDoctor, verifyDoctor } from '../../controllers/doctors/doctorsController.js';
 
 // middleware import
 import validator from '../../middleware/formValidator.js';
@@ -18,5 +18,6 @@ router.post('/', accessChecker('ADMIN'), validator(adminDoctorSchema), emailExis
 router.get('/', getDoctors);
 router.get('/:id',getDoctorById);
 router.patch('/:id', accessChecker(['ADMIN', 'DOCTOR']), validator(updateDoctorSchema), updateDoctor);
+router.patch('/:id/verify', accessChecker('ADMIN'), verifyDoctor);
 
 export default router;
