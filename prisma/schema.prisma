@@ -90,6 +90,12 @@ enum DosageForm {
   OTHER
 }
 
+enum PrescriptionStatus{
+  PENDING   
+  CANCELLED
+  DISPENSED
+}
+
 // ========== MODELS ==========
 
 // USER MODEL
@@ -296,6 +302,7 @@ model Prescription {
   frequencyPerDay Int       // 3 times per day
   durationDays    Int       // 5 days
   instructions    String?
+  status          PrescriptionStatus  @default(PENDING)
 
   dispensed       Boolean   @default(false)
   dispensedAt     DateTime? //only filled after dispensement
