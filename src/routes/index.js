@@ -11,6 +11,7 @@ import pharmacistRoutes from './pharmacists/pharmacistsRouter.js'
 import userRoutes from './users/userRoutes.js'
 import prescriptionsRoutes from './prescriptions/prescriptionsRouter.js'
 import departmentsRoutes from './departments/departmentsRouter.js'
+import labResultsRoutes from './labResults/labResultsRoutes.js'
 
 export default [
     {path: '/auth', route: authRoutes},
@@ -25,5 +26,6 @@ export default [
     {path: '/lab_techs', route: lab_techRoutes},
     {path: '/pharmacists', route: pharmacistRoutes},
     {path: '/users', route: userRoutes},
-    {path: '/prescriptions', route: prescriptionsRoutes}
+    {path: '/prescriptions', route: prescriptionsRoutes},
+    {path: '/labResults', route: labResultsRoutes}
 ]

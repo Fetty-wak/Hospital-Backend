@@ -20,6 +20,7 @@ generator client {
 enum LabResultStatus {
   PENDING
   COMPLETED
+  CANCELLED
 }
 
 enum DiagnosisStatus {
@@ -286,6 +287,7 @@ model LabResult {
   result      String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  cancellationReason  String? // only filled if labResult is cancelled
 
   // Relations
   diagnosis   Diagnosis @relation(fields: [diagnosisId], references: [id])

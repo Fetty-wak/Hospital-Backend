@@ -53,8 +53,8 @@ export const updateDiagnosis = async (req, res) => {
 
   try {
 
-    const diagnosisId = parseInt(diagnosisIdRaw, 10);
-    if (!Number.isFinite(diagnosisId)) {
+    const diagnosisId = Number(diagnosisIdRaw);
+    if (!Number.isInteger(diagnosisId)) {
       return res.status(400).json({ success: false, message: 'Invalid diagnosis ID' });
     }
 
@@ -62,6 +62,7 @@ export const updateDiagnosis = async (req, res) => {
     const diagnosis = await prisma.diagnosis.findUnique({
       where: { id: diagnosisId },
     });
+
     if (!diagnosis) {
       return res.status(404).json({ success: false, message: 'Diagnosis not found' });
     }
@@ -103,9 +104,9 @@ export const updateDiagnosis = async (req, res) => {
           data: finalPrescriptions.map((p) => ({
             diagnosisId,
             drugId: parseInt(p.drugId, 10),
-            dosage: p.dosage,
-            frequency: p.frequency,
-            duration: p.duration,
+            dosePerAdmin: p.dosePerAdmin,
+            frequencyPerDay: p.frequencyPerDay,
+            durationDays: p.durationDays,
             instructions: p.instructions ?? null,
           })),
         });
