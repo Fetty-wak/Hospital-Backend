@@ -15,7 +15,7 @@ import { createDepartmentSchema } from '../../validators/department/createDepart
 router.post('/',accessChecker('ADMIN'), validator(createDepartmentSchema), createDepartment);
 router.get('/', accessChecker(['ADMIN', 'DOCTOR', 'LAB_TECH', 'PHARMACIST']),getAllDepartments);
 router.get('/:id', accessChecker(['ADMIN', 'DOCTOR', 'LAB_TECH', 'PHARMACIST']), getDepartmentById);
-router.patch('/:id', accessChecker('ADMIN'), updateDepartment);
+router.patch('/:id', accessChecker('ADMIN'),validator(createDepartmentSchema), updateDepartment); //reusing the schema cause its the same
 router.delete('/:id', accessChecker('ADMIN'), deleteDepartment);
 
 

@@ -12,6 +12,7 @@ import userRoutes from './users/userRoutes.js'
 import prescriptionsRoutes from './prescriptions/prescriptionsRouter.js'
 import departmentsRoutes from './departments/departmentsRouter.js'
 import labResultsRoutes from './labResults/labResultsRoutes.js'
+import inviteCodesRoutes from './inviteCodes/inviteCodesRoutes.js'
 
 export default [
     {path: '/auth', route: authRoutes},
@@ -27,5 +28,6 @@ export default [
     {path: '/pharmacists', route: pharmacistRoutes},
     {path: '/users', route: userRoutes},
     {path: '/prescriptions', route: prescriptionsRoutes},
-    {path: '/labResults', route: labResultsRoutes}
+    {path: '/labResults', route: labResultsRoutes},
+    {path: '/inviteCodes', route: inviteCodesRoutes}
 ]

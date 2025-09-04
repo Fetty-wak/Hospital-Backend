@@ -85,7 +85,7 @@ export const login = async (req, res) => {
     // If PATIENT or verified elevated roles, proceed
     const token = generateToken({ id: user.id, role: user.role, fullName: user.fullName });
 
-    res.status(200).json({success: true, message: 'login was successful', data: {id: user.id, name: user.fullName, email}});
+    res.status(200).json({success: true,token, message: 'login was successful', data: {id: user.id, name: user.fullName, email}});
 
   } catch (error) {
     console.error("login error:", error);
