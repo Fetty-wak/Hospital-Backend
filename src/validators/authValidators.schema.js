@@ -20,10 +20,10 @@ const patientSchema = z.object({
 
 // ---------------- Doctor Schema ----------------
 const doctorSchema = z.object({
-  phoneNumber: z.string().transform(10, 'Enter a valid phone number').transform(str => str.trim()),
+  phoneNumber: z.string().length(10, 'Enter a valid phone number').transform(str => str.trim()),
   licenseNumber: z.string().transform(str => str.trim()),
   practiceStartDate: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  departmentId: z.number().int().positive(),
+  departmentId: z.coerce.number().int().positive(),
   inviteCode: z.string()
     .length(8)
     .regex(/^[A-Z0-9]{8}$/, "Invite code must be 8 alphanumeric characters")
@@ -33,7 +33,7 @@ const doctorSchema = z.object({
 // ---------------- Lab Technician Schema ----------------
 const labTechnicianSchema = z.object({
   phoneNumber: z.string().length(10, 'Enter a valid phone number').transform(str => str.trim()),
-  departmentId: z.number().int().positive(),
+  departmentId: z.coerce.number().int().positive(),
   inviteCode: z.string()
     .length(8)
     .regex(/^[A-Z0-9]{8}$/, "Invite code must be 8 alphanumeric characters")
@@ -43,7 +43,7 @@ const labTechnicianSchema = z.object({
 // ---------------- Pharmacist Schema ------------------
 const pharmacistSchema= z.object({
   phoneNumber: z.string().length(10, 'Enter a valid phone number').transform(str=> str.trim()),
-  departmentId: z.number().int().positive(),
+  departmentId: z.coerce.number().int().positive(),
   inviteCode: z.string()
     .length(8)
     .regex(/^[A-Z0-9]{8}$/, "Invite code must be 8 alphanumeric characters")

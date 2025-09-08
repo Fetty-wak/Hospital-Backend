@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 const prisma= new PrismaClient();
+import { notify } from "../../utils/notificationCreator.js";
 
 // Create department (fields: name)
 export const createDepartment = async (req, res) => {
@@ -80,6 +81,31 @@ export const updateDepartment = async (req, res) => {
       data: { name },
     });
 
+    //notifications to everyone in the department
+    const users= await prisma.department.findUnique({
+      where: {id},
+      include: {doctors: {user: true},
+                pharmacists: {user: true},
+                labTechs: {user: true}
+               }
+    });
+
+    let recipientIds=[];
+    if(users.doctors.length>0) recipientIds.push(...(users.doctors.map((doc)=>(doc.user.id))));
+    if(users.pharmacists.length>0) recipientIds.push(...(users.pharmacists.map((pharmacist)=> (pharmacist.user.id))));
+    if (users.labTechs.length>0) recipientIds.push(...(users.labTechs.map((labTech)=>(labTech.user.id))));
+
+    //notify
+    if(recipientIds.length>0){
+      await notify({
+        initiatorId: req.user.id,
+        recipientIds,
+        type: "DEPARTMENT_UPDATE",
+        eventId: department.id,
+        message: `Admin ${req.user.fullName}, has updated the department name to ${name}`
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: "Department updated successfully",
@@ -101,7 +127,7 @@ export const deleteDepartment = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
 
-    await prisma.department.delete({ where: { id } });
+    await prisma.department.update({ where: { id }, data: {isActive: false} });
 
     res.status(200).json({
       success: true,

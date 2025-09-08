@@ -11,7 +11,7 @@ export const register = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     let user;
 
-    await prisma.$transaction(async (tx) => {
+    user= await prisma.$transaction(async (tx) => {
       // Invite code required for elevated roles
       let inviteRecord;
       if ((role === "DOCTOR" || role === "LAB_TECH" || role==='PHARMACIST')) {
@@ -29,19 +29,24 @@ export const register = async (req, res) => {
       // Role-specific creation
       if (role === "DOCTOR") {
         const { phoneNumber, licenseNumber, practiceStartDate, departmentId } = req.body;
-        await tx.doctor.create({ data: { id: user.id, phoneNumber, licenseNumber, practiceStartDate, departmentId } });
+        await tx.doctor.create({ data: { id: user.id, phoneNumber, licenseNumber, practiceStartDate: new Date(practiceStartDate), departmentId } });
       } else if (role === "LAB_TECH") {
         const { phoneNumber, departmentId } = req.body;
         await tx.labTech.create({ data: { id: user.id, phoneNumber, departmentId } });
       } else if (role === "PATIENT") {
         const { address, phoneNumber, allergies, gender, bloodType, dateOfBirth } = req.body;
-        await tx.patient.create({ data: { id: user.id, address, phoneNumber, allergies, gender, bloodType, dateOfBirth } });
+        await tx.patient.create({ data: { id: user.id, address, phoneNumber, allergies, gender, bloodType, dateOfBirth: new Date(dateOfBirth) } });
+      }else if(role==='PHARMACIST'){
+        const {phoneNumber, departmentId}= req.body;
+        await tx.pharmacist.create({data: {id: user.id, phoneNumber, departmentId}});
       }
 
       // Mark invite code as used
       if (inviteRecord) {
         await tx.inviteCode.update({ where: { id: inviteRecord.id }, data: { used: true } });
       }
+
+      return user;
     });
 
     const token = generateToken({ id: user.id, role: user.role, fullName: user.fullName });
@@ -50,7 +55,7 @@ export const register = async (req, res) => {
       success: true,
       message: "Signup successful",
       token,
-      data: { name: user.fullName, email: user.email },
+      data: { id: user.id, name: user.fullName, email: user.email },
     });
 
   } catch (error) {

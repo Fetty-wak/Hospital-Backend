@@ -31,6 +31,8 @@ export const createAppointment = async (req, res) => {
       if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
       if (!patient) return res.status(404).json({ message: 'Patient not found' });
       recipientIds.push(doctorId, patientId);
+    }else{
+      return res.status(403).json({success: false, message: 'Access denied!'});
     }
 
     // Create appointment
