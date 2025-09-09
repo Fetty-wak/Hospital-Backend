@@ -16,7 +16,7 @@ export const isInvolved = async (req, res, next) => {
     });
 
     if (!appointment) {
-      return res.status(404).json({ message: 'Appointment not found' });
+      return res.status(404).json({success: false, message: 'Appointment not found' });
     }
 
     // Admin can access everything
@@ -28,10 +28,10 @@ export const isInvolved = async (req, res, next) => {
     }
 
     // Otherwise, forbidden
-    return res.status(403).json({ message: 'Access denied' });
+    return res.status(403).json({success: false, message: 'Access denied' });
 
   } catch (error) {
     console.error('Error in appointmentAccessCheck:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({success: false, message: 'Internal server error'});
   }
 };

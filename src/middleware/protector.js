@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
+import {PrismaClient} from '@prisma/client';
+const prisma= new PrismaClient();
 
-export const protect= (req, res, next)=>{
+export const protect= async (req, res, next)=>{
     //check for auth header
     const authHeader= req.headers.authorization;
 
@@ -11,7 +13,10 @@ export const protect= (req, res, next)=>{
 
     const decoded= jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-    if(!decoded) return res.status(401).json({message: 'access denied, please log in'});
+    if(!decoded) return res.status(401).json({success: false, message: 'Access denied, please log in'});
+
+    const user= await prisma.user.findUnique({where: {id: decoded.id}});
+    if(!user.isActive) return res.status(403).json({success: false, message: 'Access denied, account is inactive'});
 
     req.user= decoded;
     next();
