@@ -23,7 +23,7 @@ router.get('/:id', isInvolved, getAppointmentById );
 router.patch('/:id',isInvolved, validator(updateAppointmentSchema), updateAppointment );
 router.patch('/:id/confirm', isInvolved, confirmAppointment);
 router.patch('/:id/cancel',isInvolved,validator(cancelAppointmentSchema), cancelAppointment );
-router.patch('/:id/Notes',isInvolved, accessChecker('DOCTOR'), validator(appointmentNotesSchema), updateAppointmentNotes);
+router.patch('/:id/notes',isInvolved, accessChecker('DOCTOR'), validator(appointmentNotesSchema), updateAppointmentNotes);
 router.patch('/:id/complete',isInvolved, accessChecker('DOCTOR'), completeAppointment);
 
 export default router;

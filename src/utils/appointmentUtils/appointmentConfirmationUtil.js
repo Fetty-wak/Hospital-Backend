@@ -15,18 +15,19 @@ export const updateConfirmationStatus = async (appointmentId) => {
       select: { patientConfirmed: true, doctorConfirmed: true }
     });
 
-    if (!appointment) return; // appointment not found
+    if (!appointment) return {success: false, message: 'Appointment does not exist'}; // appointment not found
 
+    let updatedAppointment;
     if (appointment.patientConfirmed && appointment.doctorConfirmed) {
-      await prisma.appointment.update({
+      updatedAppointment= await prisma.appointment.update({
         where: { id: appointmentId },
         data: { status: 'CONFIRMED', updatedBy: null }
       });
     }
 
-    return {success: true}
+    return {success: true, message: 'Appointment status updated successfully', data: confirmedAppointment};
   } catch (error) {
     console.error('Error updating confirmation status:', error);
-    return {sucess: false};
+    return {sucess: false, message: 'Error updating confirmation status'};
   }
 };

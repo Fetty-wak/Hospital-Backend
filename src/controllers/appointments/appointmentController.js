@@ -426,29 +426,34 @@ export const confirmAppointment = async (req, res) => {
     });
 
     if (!appointment) {
-      return res.status(404).json({ message: "Appointment not found" });
+      return res.status(404).json({success: false, message: "Appointment not found" });
     }
 
     // inactive user checks
     if (userRole === "DOCTOR" && !appointment.patient.user.isActive) {
-      return res.status(404).json({ message: "Patient not found" });
+      return res.status(404).json({success: false, message: "Patient not found" });
     }
     if (userRole === "PATIENT" && !appointment.doctor.user.isActive) {
-      return res.status(404).json({ message: "Doctor not found" });
+      return res.status(404).json({success: false, message: "Doctor not found" });
     }
     if (userRole === "ADMIN") {
       if (!appointment.patient.user.isActive) {
-        return res.status(404).json({ message: "Patient not found" });
+        return res.status(404).json({success: false, message: "Patient not found" });
       }
       if (!appointment.doctor.user.isActive) {
-        return res.status(404).json({ message: "Doctor not found" });
+        return res.status(404).json({success: false, message: "Doctor not found" });
       }
+    }
+
+    if (appointment.status==='CANCELLED' || appointment.status==='COMPLETED' || appointment.status==="CONFIRMED"){
+      return res.status(400).json({success: false, message: "Appointment cannot be confirmed."});
     }
 
     if (appointment.patientConfirmed && appointment.doctorConfirmed) {
-      return res.status(400).json({ message: "Already confirmed by both parties" });
+      return res.status(400).json({success: false, message: "Already confirmed by both parties" });
     }
 
+    
     // Check updatedBy precedence
     if (appointment.updatedBy) {
       if (appointment.updatedBy === userId && userRole !== "ADMIN") {
@@ -482,7 +487,7 @@ export const confirmAppointment = async (req, res) => {
     });
 
     // Finalize if both confirmed
-    const isConfirmed = await updateConfirmationStatus(updatedAppointment.id);
+    const response = await updateConfirmationStatus(updatedAppointment.id);
 
     // send notification
     let recipientIds = [];
@@ -510,7 +515,7 @@ export const confirmAppointment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Appointment confirmed successfully',
-      data: { updatedAppointment },
+      data: response.data,
     });
   } catch (error) {
     console.error('could not confirm appointment: ', error.message);
@@ -543,11 +548,13 @@ export const cancelAppointment = async (req, res) => {
     });
 
     if (!appointment) {
-      return res.status(404).json({ message: "Appointment not found" });
+      return res.status(404).json({success: false, message: "Appointment not found" });
     }
 
-    if (appointment.status === "CANCELLED") {
-      return res.status(400).json({ message: "Appointment is already cancelled" });
+    if (appointment.status === "CANCELLED" ) {
+      return res.status(400).json({success: false, message: "Appointment is already cancelled." });
+    }else if(appointment.status==='COMPLETED'){
+      return res.status(400).json({success: false, message: "Appointment is already completed."})
     }
 
     // Update appointment
@@ -590,7 +597,7 @@ export const cancelAppointment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Appointment cancelled successfully",
-      data: { updatedAppointment },
+      data: updatedAppointment,
     });
 
   } catch (error) {
@@ -620,6 +627,14 @@ export const updateAppointmentNotes = async (req, res) => {
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: "Appointment not found" });
+    }
+
+    if(appointment.status==='CANCELLED' || appointment.status==='COMPLETED'){
+      return res.status(400).json({success: false, message: 'Appointment cannot be updated upon cancellation or completion'});
+    }
+
+    if(appointment.status==='PENDING'){
+      return res.status(400).json({success: false, message: 'Appointment needs to be confirmed before notes update'});
     }
 
     // Check if patient is active
@@ -666,15 +681,23 @@ export const completeAppointment = async (req, res) => {
     });
 
     if (!appointment) {
-      return res.status(404).json({success: false, message: 'Appointment not found' });
+      return res.status(404).json({success: false, message: 'Appointment not found.' });
     }
 
     if(!appointment.patient.user.isActive){
-      return res.status(404).json({success: false, message: 'Patient not found'});
+      return res.status(404).json({success: false, message: 'Patient not found.'});
     }
 
     if (appointment.status === 'COMPLETED') {
-      return res.status(400).json({success: false, message: 'Appointment is already completed' });
+      return res.status(400).json({success: false, message: 'Appointment is already completed.' });
+    }
+
+    if(appointment.status==='PENDING'){
+      return res.status(400).json({success: false, message: 'Appointment cannot be completed at this time. Confirm first.'});
+    }
+
+    if(appointment.status==='CANCELLED'){
+      return res.status(400).json({success: false, message: 'Appointment is cancelled.'})
     }
 
     // Ensure outcome notes exist before completion

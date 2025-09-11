@@ -229,6 +229,7 @@ model Appointment {
   outcome      String? //only filled upon completion
   createdBy    Int
   cancelledBy  Int? // only filled upon cancellation
+  cancellationReason String?
   updatedBy    Int? // only filled when user updates appointment
   createDiagnosis Boolean @default(false)
 
