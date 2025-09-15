@@ -17,6 +17,6 @@ router.post('/', accessChecker(['ADMIN', 'PHARMACIST']), validator(createDrugSch
 router.get('/', accessChecker(['ADMIN', 'PHARMACIST', 'DOCTOR']), getAllDrugs);
 router.get('/:id', accessChecker(['ADMIN', 'PHARMACIST', 'DOCTOR']), getDrugById);
 router.patch('/:id', accessChecker(['ADMIN', 'PHARMACIST']), validator(updateDrugSchema), updateDrug);
-router.delete('/:id', accessChecker(['ADMIN', 'PHARMACIST']), deleteDrug);
+router.patch('/:id/delist', accessChecker(['ADMIN', 'PHARMACIST']), deleteDrug);
 
 export default router;

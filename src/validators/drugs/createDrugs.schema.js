@@ -12,6 +12,7 @@ export const DosageFormEnum = z.enum([
   "SUPPOSITORY",
   "SPRAY",
   "OTHER",
+  "INHALER"
 ]);
 
 export const createDrugSchema = z.object({

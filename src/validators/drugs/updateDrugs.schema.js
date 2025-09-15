@@ -11,6 +11,7 @@ export const DosageFormEnum = z.enum([
   "SUPPOSITORY",
   "SPRAY",
   "OTHER",
+  "INHALER"
 ]);
 
 export const updateDrugSchema = z
@@ -18,10 +19,9 @@ export const updateDrugSchema = z
     name: z.string().min(1).transform(str=> str.trim()).optional(),
     description: z.string().transform(str=> str.trim()).optional(),
     dosageForm: DosageFormEnum.optional(),
-    available: z.boolean().optional(),
     strength: z.string().min(1).transform(str=> str.trim()).optional(),
   })
   .refine(
     (data) => Object.keys(data).length > 0,
     { message: "At least one field must be provided for update" }
-  );
+  ).strict();

@@ -6,8 +6,20 @@ export const createLabTest = async (req, res) => {
   try {
     const { name, code, description } = req.body;
 
+    //check if a test with similar code exists
+    if(code){
+      const existing= await prisma.labTest.findUnique({where: {code}});
+
+      if(existing) return res.status(400).json({success: false, message: 'No duplicate tests allowed'});
+    }
+    
+    //create a labTest
     const labTest = await prisma.labTest.create({
-      data: { name, code, description },
+      data: { 
+        name,
+        description,
+        ...(code && {code})
+      },
     });
 
     res.status(201).json({
@@ -17,6 +29,7 @@ export const createLabTest = async (req, res) => {
     });
   } catch (error) {
     const status = error.code === "P2002" ? 400 : 500;
+    console.error("error creating labTest", error);
     res.status(status).json({
       success: false,
       message: "Failed to create lab test",
@@ -64,7 +77,11 @@ export const getAvailableLabTests = async (_req, res) => {
 // Get lab test type by ID
 export const getLabTestById = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = Number(req.params.id);
+
+    if(!Number.isFinite(id)){
+      return res.status(400).json({success: false, message: 'Invalid labTest id'});
+    }
 
     const labTest = await prisma.labTest.findUnique({ where: { id } });
     if (!labTest) {
@@ -92,8 +109,16 @@ export const getLabTestById = async (req, res) => {
 // Update lab test type (fields: name, code?)
 export const updateLabTest = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const { name, code, description, available } = req.body;
+    const id = Number(req.params.id);
+    const { name, code, description } = req.body;
+
+    if(!Number.isFinite(id)){
+      return res.status(400).json({success: false, message: 'Invalid labTest id'});
+    }
+
+    const exists= await prisma.labTest.findUnique({where: {id}});
+
+    if(!exists) return res.status(404).json({success: false, message: 'LabTest does not exist'});
 
     const labTest = await prisma.labTest.update({
       where: { id },
@@ -101,7 +126,6 @@ export const updateLabTest = async (req, res) => {
         ...(name && {name}),
         ...(code && {code}),
         ...(description && {description}),
-        ...(available !==undefined && {available})
       }
     });
 
@@ -124,21 +148,31 @@ export const updateLabTest = async (req, res) => {
 // Delete lab test type
 export const deleteLabTest = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = Number(req.params.id);
 
-    await prisma.labTest.delete({ where: { id } });
+    if(!Number.isFinite(id)){
+      return res.status(400).json({success: false, message: 'Invalid labTest id'});
+    }
+
+    const exists= await prisma.labTest.findUnique({where: {id}});
+
+    if(!exists) return res.status(404).json({success: false, message: 'LabTest does not exist'});
+
+    if(!exists.available) return res.status(400).json({success: false, message: 'The test is already delisted'});
+    
+    const delisted= await prisma.labTest.update({ where: { id }, data: {available: false} });
 
     res.status(200).json({
       success: true,
-      message: "Lab test deleted successfully",
-      data: null,
+      message: "Lab test delisted successfully",
+      data: delisted,
     });
   } catch (error) {
     const status = error.code === "P2025" ? 404 : 500;
     res.status(status).json({
       success: false,
       message:
-        error.code === "P2025" ? "Lab test not found" : "Failed to delete lab test",
+        error.code === "P2025" ? "Lab test not found" : "Failed to delist lab test",
       data: null,
     });
   }

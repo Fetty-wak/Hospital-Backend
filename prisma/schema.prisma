@@ -89,6 +89,7 @@ enum DosageForm {
   DROPS
   SUPPOSITORY
   SPRAY
+  INHALER
   OTHER
 }
 
@@ -270,7 +271,7 @@ model Diagnosis {
 model LabTest {
   id        Int       @id @default(autoincrement())
   name      String    @unique       // e.g., "Complete Blood Count", "Chest X-Ray"
-  code      String?   @unique       // optional standardized code (like LOINC)
+  code      String?   @unique    // optional standardized code (like LOINC)
   description String
   available  Boolean  @default(true)
   createdAt DateTime  @default(now())

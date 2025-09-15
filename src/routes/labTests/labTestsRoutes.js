@@ -16,9 +16,9 @@ import { updateLabTestSchema } from "../../validators/labTests/updateLabTest.sch
 router.post('/', accessChecker(['ADMIN', 'LAB_TECH']),validator(createLabTestSchema), createLabTest);
 router.get('/', accessChecker(['ADMIN', 'LAB_TECH', 'DOCTOR']),getAllLabTests);
 router.get('/available', accessChecker(['ADMIN', 'LAB_TECH', 'DOCTOR']), getAvailableLabTests);
-router.get('/', accessChecker(['ADMIN', 'LAB_TECH', 'DOCTOR']), getLabTestById);
+router.get('/:id', accessChecker(['ADMIN', 'LAB_TECH', 'DOCTOR']), getLabTestById);
 router.patch('/:id', accessChecker(['LAB_TECH', 'ADMIN']),validator(updateLabTestSchema), updateLabTest);
-router.delete('/:id', accessChecker(['ADMIN', 'LAB_TECH']), deleteLabTest);
+router.patch('/:id/delist', accessChecker(['ADMIN', 'LAB_TECH']), deleteLabTest);
 
 
 export default router;

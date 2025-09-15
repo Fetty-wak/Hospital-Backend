@@ -46,9 +46,14 @@ export const getAllDrugs = async (_req, res) => {
 // Get drug by ID
 export const getDrugById = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = Number(req.params.id);
+
+    if(!Number.isFinite(id)){
+      return res.status(400).json({success: false, message: 'Invalid drug id'})
+    }
 
     const drug = await prisma.drug.findUnique({ where: { id } });
+
     if (!drug) {
       return res.status(404).json({
         success: false,
@@ -74,8 +79,16 @@ export const getDrugById = async (req, res) => {
 // Update drug (fields: name, description?, dosageForm, strength)
 export const updateDrug = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const { name, description, dosageForm, available, strength } = req.body;
+    const id = Number(req.params.id);
+    const { name, description, dosageForm, strength } = req.body;
+
+    if(!Number.isFinite(id)){
+      return res.status(400).json({success: false, message: 'Invalid drug id'})
+    }
+
+    const exist= await prisma.drug.findUnique({where: {id}});
+
+    if(!exist) return res.status(404).json({success: false, message: 'Drug does not exist'});
 
     const drug = await prisma.drug.update({
       where: { id },
@@ -84,7 +97,6 @@ export const updateDrug = async (req, res) => {
         ...(description && {description}),
         ...(strength && {strength}),
         ...(dosageForm && {dosageForm}),
-        ...(available !== undefined && {available})
        }
     });
 
@@ -107,13 +119,17 @@ export const updateDrug = async (req, res) => {
 // Delete drug
 export const deleteDrug = async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = Number(req.params.id);
 
-    await prisma.drug.delete({ where: { id } });
+    if(!Number.isFinite(id)){
+      return res.status(400).json({success: false, message: 'Invalid drug id'})
+    }
+
+    await prisma.drug.update({ where: { id }, data: {available: false} });
 
     res.status(200).json({
       success: true,
-      message: "Drug deleted successfully",
+      message: "Drug delisted successfully",
       data: null,
     });
   } catch (error) {
@@ -121,7 +137,7 @@ export const deleteDrug = async (req, res) => {
     res.status(status).json({
       success: false,
       message:
-        error.code === "P2025" ? "Drug not found" : "Failed to delete drug",
+        error.code === "P2025" ? "Drug not found" : "Failed to delist drug",
       data: null,
     });
   }
