@@ -15,7 +15,7 @@ import { cancelLabResultSchema } from '../../validators/labResults/cancelLabResu
 
 //route definitions
 router.patch('/:id', accessChecker('LAB_TECH'), validator(updateLabResultSchema), updateLabResult);
-router.patch('/:id', accessChecker('DOCTOR'), validator(cancelLabResultSchema), cancelLabResult);
+router.patch('/:id/cancel', accessChecker('DOCTOR'), validator(cancelLabResultSchema), cancelLabResult);
 router.patch('/:id/complete', accessChecker('LAB_TECH'), completeLabResult);
 router.get('/', accessChecker(['DOCTOR', 'PATIENT', 'ADMIN', 'LAB_TECH']), getAllLabResults);
 router.get('/:id', accessChecker(['DOCTOR', 'PATIENT', 'ADMIN', 'LAB_TECH']), getLabResultById);

@@ -4,12 +4,22 @@ const prisma= new PrismaClient();
 export const createDiagnosis = async (req, res) => {
   try {
     const { id: doctorId, role } = req.user;
-    const { patientId} = req.body; 
+    const { patientId: patientIdRaw} = req.body; 
+
+    const patientId= Number(patientIdRaw);
+
+    if(!Number.isFinite(patientId)){
+      return res.status(404).json({success: false, message: 'Invalid patient Id'});
+    }
 
     //ensure patient is in the system
-    const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await prisma.patient.findUnique({ where: { id: patientId }, include: {user: true} });
     if (!patient) {
       return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+
+    if(!patient.user.isActive){
+      return res.status(400).json({success: false, message: 'Patient is not active'});
     }
 
     const createdDiagnosis = await prisma.diagnosis.create({
@@ -52,7 +62,6 @@ export const updateDiagnosis = async (req, res) => {
   const { id: diagnosisIdRaw } = req.params;
 
   try {
-
     const diagnosisId = Number(diagnosisIdRaw);
     if (!Number.isInteger(diagnosisId)) {
       return res.status(400).json({ success: false, message: 'Invalid diagnosis ID' });
@@ -61,10 +70,21 @@ export const updateDiagnosis = async (req, res) => {
     // Ensure diagnosis exists
     const diagnosis = await prisma.diagnosis.findUnique({
       where: { id: diagnosisId },
+      include: {
+        patient: {
+          include: {
+            user: true
+          }
+        }
+      }
     });
 
     if (!diagnosis) {
       return res.status(404).json({ success: false, message: 'Diagnosis not found' });
+    }
+
+    if (!diagnosis.patient.user.isActive) {
+      return res.status(400).json({ success: false, message: 'Patient is not active' });
     }
 
     // Transaction: update diagnosis + (optional) create lab results + (optional) create prescriptions
@@ -87,6 +107,19 @@ export const updateDiagnosis = async (req, res) => {
         : [];
 
       if (finalLabTests.length > 0) {
+        // ✅ Validate labTest IDs
+        const validTests = await tx.labTest.findMany({
+          where: { id: { in: finalLabTests }, available: true },
+          select: { id: true },
+        });
+
+        const validLabTestIds = new Set(validTests.map(t => t.id));
+        const invalidLabTestIds = finalLabTests.filter(id => !validLabTestIds.has(id));
+
+        if (invalidLabTestIds.length > 0) {
+          throw new Error(`Invalid labTest IDs: ${invalidLabTestIds.join(', ')}`);
+        }
+
         labResultsCreated = await tx.labResult.createMany({
           data: finalLabTests.map((labTestId) => ({
             labTestId,
@@ -100,13 +133,28 @@ export const updateDiagnosis = async (req, res) => {
       const finalPrescriptions = Array.isArray(prescriptions) ? prescriptions : [];
 
       if (finalPrescriptions.length > 0) {
+        // ✅ Validate drug IDs
+        const drugIds = [...new Set(finalPrescriptions.map(p => parseInt(p.drugId, 10)))];
+
+        const validDrugs = await tx.drug.findMany({
+          where: { id: { in: drugIds }, available: true },
+          select: { id: true },
+        });
+
+        const validDrugIds = new Set(validDrugs.map(d => d.id));
+        const invalidDrugIds = drugIds.filter(id => !validDrugIds.has(id));
+
+        if (invalidDrugIds.length > 0) {
+          throw new Error(`Invalid drug IDs: ${invalidDrugIds.join(', ')}`);
+        }
+
         prescriptionsCreated = await tx.prescription.createMany({
           data: finalPrescriptions.map((p) => ({
             diagnosisId,
             drugId: parseInt(p.drugId, 10),
-            dosePerAdmin: p.dosePerAdmin,
-            frequencyPerDay: p.frequencyPerDay,
-            durationDays: p.durationDays,
+            dosePerAdmin: parseInt(p.dosePerAdmin, 10),
+            frequencyPerDay: parseInt(p.frequencyPerDay, 10),
+            durationDays: parseInt(p.durationDays, 10),
             instructions: p.instructions ?? null,
           })),
         });
@@ -137,14 +185,12 @@ export const updateDiagnosis = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in diagnosis update:', error);
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
-      message: 'Diagnosis update failed. Internal server error',
-      error: error.message,
+      message: error.message || 'Diagnosis update failed',
     });
   }
 };
-
 
 export const getDiagnosis = async (req, res) => {
   const { id, role } = req.user;
@@ -266,6 +312,7 @@ export const completeDiagnosis = async (req, res) => {
     const diagnosis = await prisma.diagnosis.findUnique({
       where: { id: diagnosisId },
       include: {
+        patient: {include: {user: true}},
         labresults: { select: { id: true, status: true } },
         prescriptions: { select: { id: true } },
       },
@@ -277,6 +324,10 @@ export const completeDiagnosis = async (req, res) => {
 
     if (diagnosis.status === 'COMPLETED') {
       return res.status(400).json({ success: false, message: 'Diagnosis already completed' });
+    }
+
+    if(!diagnosis.patient.user.isActive){
+      return res.status(400).json({success: false, message: 'Patient is not active'});
     }
 
     // Lab checks

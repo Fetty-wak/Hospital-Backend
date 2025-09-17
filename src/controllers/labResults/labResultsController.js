@@ -39,7 +39,7 @@ export const updateLabResult = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating labResult:", error);
-    return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -74,7 +74,7 @@ export const completeLabResult = async (req, res) => {
     });
   } catch (error) {
     console.error("Error completing labResult:", error);
-    return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -123,7 +123,7 @@ export const cancelLabResult = async (req, res) => {
     });
   } catch (error) {
     console.error("Error cancelling labResult:", error);
-    return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Internal server error", });
   }
 };
 
@@ -167,16 +167,34 @@ export const getLabResultById = async (req, res) => {
     return res.status(200).json({ success: true, data: labResult });
   } catch (error) {
     console.error("Error fetching labResult by ID:", error);
-    return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+    return res.status(500).json({ success: false, message: "Internal server error"});
   }
 };
 
 // ================= GET ALL =================
 export const getAllLabResults = async (req, res) => {
-  const { role } = req.user;
+  const { role, id: userId } = req.user;
+  const {status}= req.query;
 
   try {
+    let whereCondition = {};
+
+    if (role === 'DOCTOR') {
+      whereCondition = { diagnosis: { doctorId: userId } };
+    } else if (role === 'PATIENT') {
+      whereCondition = { diagnosis: { patientId: userId } };
+    }else if(role==='LAB_TECH'){
+      if(status==='PENDING'){
+        whereCondition= {status: 'PENDING'};
+      }else if(status==='COMPLETED'){
+        whereCondition= {status: 'COMPLETED', labTechId: userId};
+      }else{
+        whereCondition={labTechId: userId};
+      }
+    }
+
     const labResults = await prisma.labResult.findMany({
+      where: whereCondition,
       include: {
         labTest: { select: { name: true } },
         diagnosis: { select: { id: true, patientId: true, doctorId: true } },
@@ -186,8 +204,9 @@ export const getAllLabResults = async (req, res) => {
     return res.status(200).json({ success: true, data: labResults });
   } catch (error) {
     console.error("Error fetching labResults:", error);
-    return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
-
-

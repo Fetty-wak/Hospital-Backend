@@ -20,9 +20,9 @@ import { updateDiagnosisSchema } from '../../validators/diagnosis/updateDiagnosi
 //routing 
 router.post('/',accessChecker('DOCTOR'),validator(createDiagnosisSchema), roleInjector, createDiagnosis);
 router.patch('/:id',isInvolved, accessChecker('DOCTOR'),validator(updateDiagnosisSchema), updateDiagnosis);
-router.get('/',accessChecker('DOCTOR'), getDiagnosis);
+router.get('/',accessChecker(['DOCTOR', 'PATIENT']), getDiagnosis);
 router.get('/:id',isInvolved, getDiagnosisById);
-router.patch('/:id', isInvolved,accessChecker('DOCTOR'), completeDiagnosis);
+router.patch('/:id/complete', isInvolved,accessChecker('DOCTOR'), completeDiagnosis);
 
 
 export default router;

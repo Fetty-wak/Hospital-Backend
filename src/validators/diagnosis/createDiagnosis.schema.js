@@ -1,7 +1,5 @@
 import { z } from "zod";
 
 export const createDiagnosisSchema = z.object({
-  body: z.object({
-    patientId: z.number().int().positive()
-  }),
+  patientId: z.string().min(1, 'Enter a valid id').transform(str=> str.trim())
 }).strict();

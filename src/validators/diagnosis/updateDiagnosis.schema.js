@@ -10,7 +10,7 @@ export const updateDiagnosisSchema = z
     prescriptions: z
       .array(
         z.object({
-          drugId: z.number().int().positive(),
+          drugId: z.string().min(1).transform(str=> str.trim()),
           dosePerAdmin: z.string().transform(str => str.trim()),
           frequencyPerDay: z.string().transform(str => str.trim()),
           durationDays: z.string().transform(str => str.trim()),
