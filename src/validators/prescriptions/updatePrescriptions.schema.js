@@ -7,6 +7,6 @@ export const updatePrescriptionSchema= z.object({
     durationDays: z.string().transform(str=> str.trim()).optional(),
     instructions: z.string().min(5, 'Enter detailed instrictions please').transform(str=> str.trim()).optional()
 }).refine(
-    (data)=> Object.keys(data).lenth > 0, 
+    (data)=> Object.keys(data).length > 0, 
     {message: 'At least one field is required'}
 ).strict();

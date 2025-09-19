@@ -304,7 +304,7 @@ model Prescription {
   id              Int       @id @default(autoincrement())
   diagnosisId     Int
   drugId          Int
-  dosePerAdmin    Int       // 2 tablets
+  dosePerAdmin    String       // 2 tablets
   frequencyPerDay Int       // 3 times per day
   durationDays    Int       // 5 days
   instructions    String?

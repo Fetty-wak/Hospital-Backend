@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 const prisma= new PrismaClient();
+import { notify } from "../../utils/notificationCreator.js";
 
 export const createDiagnosis = async (req, res) => {
   try {
@@ -359,11 +360,20 @@ export const completeDiagnosis = async (req, res) => {
     const finalDiagnosis = await prisma.diagnosis.findUnique({
       where: { id: updated.id },
       include: {
-        doctor: { include: { user: true, department: true } },
-        patient: { include: { user: true } },
+        doctor: { include: { user: {select: {id: true, fullName: true}}, department: true } },
+        patient: { include: { user: {select: {id: true, fullName: true}} } },
         labresults: true,
         prescriptions: { include: { drug: true } },
       },
+    });
+
+    //notify the patient
+    await notify({
+      recipientIds: finalDiagnosis.patient.user.id,
+      initiatorId: req.user.id,
+      type: 'DIAGNOSIS',
+      message: `Your diagnosis with dr. ${req.user.fullName} is completed. You can review details.`,
+      eventId: finalDiagnosis.id
     });
 
     return res.status(200).json({

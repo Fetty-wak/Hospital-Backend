@@ -4,19 +4,6 @@ import {notify} from '../../utils/notificationCreator.js';
 
 const PRESCRIPTION_INCLUDE = {
   drug: true,
-  diagnosis: {
-    include: {
-      patient: {
-        include: { user: true },
-      },
-      doctor: {
-        include: { user: true },
-      },
-    },
-  },
-  pharmacist: {
-    include: { user: true },
-  },
 };
 
 export const updatePrescription = async (req, res) => {
@@ -31,7 +18,7 @@ export const updatePrescription = async (req, res) => {
     // Fields expected (Zod already validated on the route)
     const { drugId, dosePerAdmin, frequencyPerDay, durationDays, instructions } = req.body;
 
-    const existing = await prisma.prescription.findUnique({ where: { id } });
+    const existing = await prisma.prescription.findUnique({ where: { id }, include: {diagnosis: {select: {doctorId: true}}} });
     if (!existing) {
       return res.status(404).json({ 
         success: false, 
@@ -45,12 +32,18 @@ export const updatePrescription = async (req, res) => {
         message: "Cannot update a prescription that has already been dispensed",
       });
     }
+
+    //if its a doctor, ensure its the same doctor linked to the diagnosis
+    if(role==='DOCTOR' && existing.diagnosis.doctorId!==userId){
+      return res.status(403).json({success: false, message: 'Access denied'})
+    }
+
     
     let updateData= {
-        ...(drugId && {drugId}),
+        ...(drugId && {drugId: Number(drugId)}),
         ...(dosePerAdmin && {dosePerAdmin}),
-        ...(frequencyPerDay && {frequencyPerDay}),
-        ...(durationDays && {durationDays}),
+        ...(frequencyPerDay && {frequencyPerDay: Number(frequencyPerDay)}),
+        ...(durationDays && {durationDays: Number(durationDays)}),
         ...(instructions && {instructions})
     };
 
@@ -69,7 +62,7 @@ export const updatePrescription = async (req, res) => {
     console.error("Update prescription error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to update prescription",
+      message: "Failed to update prescription",
     });
   }
 };
@@ -79,48 +72,117 @@ export const getPrescriptions = async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
 
-    // query params for filtering
     const { status, patientId, doctorId, pharmacistId } = req.query;
 
-    let where = {
-        diagnosis: {}
-    };
+    // start with base object
+    let where = { diagnosis: {} };
 
+    // =========================
+    // PATIENT
+    // =========================
     if (role === "PATIENT") {
-      // patient can only ever see their own prescriptions that are dispensed
-      where = {
-        status: "DISPENSED",
-        diagnosis: { patientId: userId },
-      };
-
-    } else if (role === "DOCTOR") {
-      // doctor can only ever see prescriptions they created
-      where = {
-        diagnosis: { doctorId: userId },
-      };
-
-    } else if (role === "PHARMACIST") {
-      // pharmacist can see pending ones or their own
-      where = {};
-
-    } else if (role === "ADMIN") {
-      // admin can see all, filters are allowed
-      where = {};
-    } 
-
-    if(role==='DOCTOR'){
-        if (status) where.status= status;
-    }else if(role==='ADMIN' || role==='PHARMACIST'){
-        if(status) where.status=status;
-        if(patientId) where.diagnosis.patientId= Number(patientId);
-        if(doctorId) where.diagnosis.doctorId= Number(doctorId);
-        if(pharmacistId && role==='PHARMACIST'){
-            where.pharmacistId= userId;
-        }else if (pharmacistId){
-            where.pharmacistId= Number(pharmacistId);
-        }  
+      where.status = "DISPENSED";
+      where.diagnosis.patientId = userId;
     }
 
+    // =========================
+    // DOCTOR
+    // =========================
+    if (role === "DOCTOR") {
+      where.diagnosis.doctorId = userId;
+
+      if (status) {
+        where.status = status.toUpperCase();
+      }
+
+      if (patientId) {
+        const patient = await prisma.patient.findUnique({
+          where: { id: Number(patientId) },
+        });
+        if (!patient)
+          return res
+            .status(400)
+            .json({ success: false, message: "Patient not found" });
+        where.diagnosis.patientId = Number(patientId);
+      }
+    }
+
+    // =========================
+    // PHARMACIST
+    // =========================
+    if (role === "PHARMACIST") {
+      if (status) {
+        where.status = status.toUpperCase();
+      }
+
+      if (patientId) {
+        const patient = await prisma.patient.findUnique({
+          where: { id: Number(patientId) },
+        });
+        if (!patient)
+          return res
+            .status(400)
+            .json({ success: false, message: "Patient not found" });
+        where.diagnosis.patientId = Number(patientId);
+      }
+
+      if (doctorId) {
+        const doctor = await prisma.doctor.findUnique({
+          where: { id: Number(doctorId) },
+        });
+        if (!doctor)
+          return res
+            .status(400)
+            .json({ success: false, message: "Doctor not found" });
+        where.diagnosis.doctorId = Number(doctorId);
+      }
+    }
+
+    // =========================
+    // ADMIN
+    // =========================
+    if (role === "ADMIN") {
+      if (status) {
+        where.status = status.toUpperCase();
+      }
+
+      if (patientId) {
+        const patient = await prisma.patient.findUnique({
+          where: { id: Number(patientId) },
+        });
+        if (!patient)
+          return res
+            .status(400)
+            .json({ success: false, message: "Patient not found" });
+        where.diagnosis.patientId = Number(patientId);
+      }
+
+      if (doctorId) {
+        const doctor = await prisma.doctor.findUnique({
+          where: { id: Number(doctorId) },
+        });
+        if (!doctor)
+          return res
+            .status(400)
+            .json({ success: false, message: "Doctor not found" });
+        where.diagnosis.doctorId = Number(doctorId);
+      }
+
+      if (pharmacistId) {
+        const pharmacist = await prisma.pharmacist.findUnique({
+          where: { id: Number(pharmacistId) },
+        });
+        if (!pharmacist)
+          return res
+            .status(400)
+            .json({ success: false, message: "Pharmacist not found" });
+        where.pharmacistId = Number(pharmacistId);
+      }
+    }
+
+    // =========================
+    // QUERY
+    // =========================
     const prescriptions = await prisma.prescription.findMany({
       where,
       include: PRESCRIPTION_INCLUDE,
@@ -132,15 +194,55 @@ export const getPrescriptions = async (req, res) => {
       message: "Prescriptions retrieved successfully",
       data: prescriptions,
     });
-
   } catch (error) {
     console.error("Get prescriptions error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to retrieve prescriptions",
+      message: "Failed to retrieve prescriptions",
     });
   }
 };
+
+export const getPrescriptionById= async (req, res)=>{
+  try{
+    const {id: userId, role }= req.user;
+    const {id}= req.params;
+
+    const prescriptionId= Number(id);
+    if(!Number.isFinite(prescriptionId)){
+      return res.status(400).json({success: false, message: 'Invalid prescription Id'});
+    }
+
+    const prescription= await prisma.prescription.findUnique({where: {id: prescriptionId}, include: {diagnosis :{select: {doctorId: true, patientId: true}}}});
+
+    if(!prescription){
+      return res.status(404).json({success: false, message: 'Prescription not found'});
+    }
+
+    if(role==='DOCTOR' && prescription.diagnosis.doctorId!==userId){
+      return res.status(403).json({success: false, message: 'Access denied'});
+    }
+      
+    if(role==='PATIENT' && prescription.diagnosis.patientId!==userId){
+      return res.status(403).json({success: false, message: 'Access denied'});
+    }
+
+    //retrieve the prescription
+    let finalPrescription
+    if(role==='DOCTOR' || role==="PATIENT"){
+      finalPrescription= await prisma.prescription.findFirst({where: {id: prescriptionId}, include: {drug: true, diagnosis: true}});
+    }else{
+      finalPrescription= await prisma.prescription.findUnique({where: {id: prescriptionId}, include: {drug: true}});
+    }
+
+    return res.status(200).json({success: true, message: 'prescription retrieved successfully', data: finalPrescription});
+    
+
+  }catch(error){
+    console.error("error getting the prescription: ", error);
+    res.status(500).json({success: false, message: 'Internal server error'});
+  }
+}
 
 
 export const dispensePrescription = async (req, res) => {
@@ -169,10 +271,15 @@ export const dispensePrescription = async (req, res) => {
       });
     }
 
-    if (existing.dispensed) {
+    if (existing.status==='DISPENSED') {
       return res.status(400).json({ 
         success: false, 
         message: "Prescription has already been dispensed" 
+      });
+    }else if(existing.status==='CANCELLED'){
+      return res.status(400).json({ 
+        success: false, 
+        message: "Prescription has been cancelled" 
       });
     }
 
@@ -189,8 +296,8 @@ export const dispensePrescription = async (req, res) => {
 
     //notify doctor and patient
     let recipientIds= [];
-    recipientIds.push(dispensed.diagnosis.doctor.user.id);
-    recipientIds.push(dispensed.diagnosis.patient.user.id);
+    recipientIds.push(existing.diagnosis.doctor.user.id);
+    recipientIds.push(existing.diagnosis.patient.user.id);
 
     await notify({
         type: 'PRESCRIPTION',
@@ -209,7 +316,7 @@ export const dispensePrescription = async (req, res) => {
     console.error("Dispense prescription error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to dispense prescription",
+      message: "Failed to dispense prescription",
     });
   }
 };
@@ -262,7 +369,7 @@ export const deletePrescription = async (req, res) => {
     console.error("Delete prescription error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to delete prescription",
+      message: "Failed to delete prescription",
     });
   }
 };

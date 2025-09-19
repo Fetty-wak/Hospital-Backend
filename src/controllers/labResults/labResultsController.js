@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
+import { notify } from "../../utils/notificationCreator.js";
 
 // ================= UPDATE LAB RESULT =================
 export const updateLabResult = async (req, res) => {
@@ -54,7 +55,7 @@ export const completeLabResult = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid labResult ID" });
     }
 
-    const labResult = await prisma.labResult.findUnique({ where: { id: labResultId } });
+    const labResult = await prisma.labResult.findUnique({ where: { id: labResultId }, include: {diagnosis: {include: {doctor: {include: {user: {select: {id: true, fullName: true}}}}}}, labTest: {select: {name: true}}} });
     if (!labResult) {
       return res.status(404).json({ success: false, message: "LabResult not found" });
     }
@@ -62,9 +63,22 @@ export const completeLabResult = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot complete LabResult without a result" });
     }
 
+    if(labResult.status==='COMPLETED' || labResult.status==='CANCELLED'){
+      return res.status(400).json({success: false, message: 'Lab result is already completed/ cancelled'});
+    }
+
     const completedLabResult = await prisma.labResult.update({
       where: { id: labResultId },
       data: { status: "COMPLETED", labTechId: labResult.labTechId || userId },
+    });
+
+    //notify the doctor
+    await notify({
+      recipientIds: labResult.diagnosis.doctor.user.id,
+      initiatorId: req.user.id,
+      type: "LAB_RESULT",
+      message: `The ${labResult.labTest.name} lab result is ready. Completed by Lab_tech ${req.user.fullName}`,
+      eventId: completedLabResult.id
     });
 
     return res.status(200).json({
