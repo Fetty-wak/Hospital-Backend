@@ -9,6 +9,7 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 generator client {
@@ -94,7 +95,7 @@ enum DosageForm {
 }
 
 enum PrescriptionStatus{
-  PENDING   
+  PENDING
   CANCELLED
   DISPENSED
 }
@@ -176,7 +177,7 @@ model Doctor {
 
 //PHARMACIST MODEL
 model Pharmacist {
-  id  Int       @id 
+  id  Int       @id
   phoneNumber  String    @unique
   departmentId Int
   isVerified   Boolean   @default(false) //changed by admin
@@ -342,10 +343,10 @@ model Notification {
   isRead       Boolean          @default(false)
   createdAt    DateTime         @default(now())
   initiatorId  Int
-  recipientId  Int       
+  recipientId  Int
   eventId      Int?   //this is the id of whatever triggered the notification
   status       String
-  errorMessage String? //filled if notification generation fails  
+  errorMessage String? //filled if notification generation fails
 
   // Relations
   initiator    User             @relation("Outbox", fields: [initiatorId], references: [id])
